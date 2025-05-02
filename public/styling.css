@@ -169,12 +169,13 @@ body::before {
     cursor: none;
 }
 .disconnect-button span:hover::after {
-    content: "Connect/Disconnect";
-    display: block;
+    content: "Connect or Disconnect";
+    display: inline-block;
     position: absolute;
-    top: 80%;
-    left: 36%;
-    transform: translateX(-50%);
+    /* width: 100px; */
+    top: 12%;
+    left: 0%;
+    transform: translateX(-100%);
     background-color: #000000;
     color: #FFFFFF;
     padding: 5px;

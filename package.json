@@ -4,13 +4,15 @@
   "main": "app.js",
   "scripts": {
     "build": "netlify deploy --prod",
-    "start": "nodemon app.js"
+    "start": "node app.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "dotenv": "^16.4.5",
+    "@google/generative-ai": "^0.24.0",
+    "dotenv": "^16.4.7",
     "express": "^4.19.2",
+    "serverless-http": "^3.2.0",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {

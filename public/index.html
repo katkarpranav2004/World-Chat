@@ -3,10 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.8/purify.min.js"></script>
+
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.8/purify.min.js" defer></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
+    
+    <!-- Socket.IO Client -->
+    <script src="/socket.io/socket.io.js" defer></script>
 
     <title>World-Chat</title>
+
+    <!-- Fonts and Styles -->
     <link
       href="https://fonts.googleapis.com/css2?family=VT323&display=swap"
       rel="stylesheet"
@@ -16,15 +24,20 @@
       href="https://cdn.jsdelivr.net/npm/emoji-mart@latest/css/emoji-mart.css"
     />
     <link rel="stylesheet" href="./styling.css" />
-    <script src="https://cdn.jsdelivr.net/npm/emoji-mart@latest/dist/browser.js"></script>
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- Link to the separate stylesheet for the toggle switch -->
+    <link rel="stylesheet" href="./toggle-switch.css" />
   </head>
   <body>
     <div class="custom-cursor"><div class="cursor-dot"></div></div>
+
     <div class="terminal">
-      <div class="terminal-header">Chat Terminal
-        <button class="disconnect-button" id="disconnect-button"><span>⌀</span></button>
+      <div class="terminal-header">
+        Chat Terminal
+        <button class="disconnect-button" id="disconnect-button" aria-label="Disconnect/Connect">
+            <span>⌀</span>
+        </button>
       </div>
+
       <div class="status-bar">
         <div class="connection-status">Welcome to World-Chat Terminal!</div>
         <div class="clock">00:00:00</div>
@@ -32,36 +45,80 @@
           Users online: <span class="user-count">0</span>
         </div>
       </div>
+
       <div class="chat-messages">
-        <div class="message received">
-          <!-- <div class="message-content"></div> -->
-        </div>
-        <div class="message sent">
-          <!-- <div class="message-content"></div> -->
-        </div>
+        <!-- Messages will be dynamically inserted here -->
       </div>
+      
+      <div id="emoji-picker" style="display: none"></div>
+      <div id="gif-picker" style="display: none">
+        <input type="text" id="gif-search" placeholder="Search GIFs..." />
+        <div id="gif-results"></div>
+      </div>
+      
+      <!-- The main chat input container -->
       <div class="chat-input">
         <button id="emoji-button" aria-label="Open emoji picker">😊</button>
         <button id="gif-button" aria-label="Open GIF picker">GIF</button>
+
         <input
           type="text"
           placeholder="Type your message..."
           class="input"
           aria-label="Chat input"
         />
+
+        <!-- NEW: Advanced AI Toggle Switch -->
+        <div class="ai-toggle-container">
+            <div class="neo-toggle-container">
+              <input class="neo-toggle-input" id="ai-public-toggle" type="checkbox" />
+              <label class="neo-toggle" for="ai-public-toggle">
+                <div class="neo-track">
+                  <div class="neo-background-layer"></div>
+                  <div class="neo-grid-layer"></div>
+                  <div class="neo-spectrum-analyzer">
+                    <div class="neo-spectrum-bar"></div>
+                    <div class="neo-spectrum-bar"></div>
+                    <div class="neo-spectrum-bar"></div>
+                    <div class="neo-spectrum-bar"></div>
+                    <div class="neo-spectrum-bar"></div>
+                  </div>
+                  <div class="neo-track-highlight"></div>
+                </div>
+            
+                <div class="neo-thumb">
+                  <div class="neo-thumb-ring"></div>
+                  <div class="neo-thumb-core">
+                    <div class="neo-thumb-icon">
+                      <div class="neo-thumb-wave"></div>
+                      <div class="neo-thumb-pulse"></div>
+                    </div>
+                  </div>
+                </div>
+            
+                <div class="neo-gesture-area"></div>
+            
+                <div class="neo-interaction-feedback">
+                  <div class="neo-ripple"></div>
+                  <div class="neo-progress-arc"></div>
+                </div>
+            
+                <div class="neo-status">
+                  <div class="neo-status-indicator">
+                    <div class="neo-status-dot"></div>
+                    <div class="neo-status-text"></div>
+                  </div>
+                </div>
+              </label>
+            </div>
+        </div>
+
         <button id="send-button" aria-label="Send message">Send</button>
       </div>
     </div>
-    <div id="emoji-picker" style="display: none"></div>
-    <div id="gif-picker" style="display: none">
-      <input type="text" id="gif-search" placeholder="Search GIFs..." />
-      <div id="gif-results"></div>
-    </div>
-    <!-- <script>
-      const socket = io();
-      socket.emit('chat-message', 'Hello, RetroChat!');
-    </script> -->
-    <script src="client.js"></script>
-    <script src="support.js"></script>
+
+    <!-- Application Scripts -->
+    <script src="client.js" defer></script>
+    <script src="support.js" defer></script>
   </body>
 </html>

@@ -1,150 +1,403 @@
-// Initialize socket connection and DOM elements
-const socket = io();
-const chatMessages = document.querySelector(".chat-messages");
-const inputField = document.querySelector(".chat-input input");
-const sendButton = document.getElementById("send-button");
-const disconnectBtn = document.getElementById("disconnect-button");
-const connectionStatus = document.querySelector(".connection-status");
-const userCount = document.querySelector(".user-count");
+// // Wait for the DOM to be fully loaded before executing any script
+// document.addEventListener('DOMContentLoaded', () => {
 
-// Constants
-const AI_ACTION_PREFIX = "@gemini";
+//     // --- DOM Element Selection ---
+//     const socket = io();
+//     const chatMessages = document.querySelector(".chat-messages");
+//     const inputField = document.querySelector(".chat-input .input");
+//     const sendButton = document.getElementById("send-button");
+//     const disconnectBtn = document.getElementById("disconnect-button");
+//     const connectionStatus = document.querySelector(".connection-status");
+//     const userCount = document.querySelector(".user-count");
+//     // Get the new AI toggle button
+//     const aiPublicToggleBtn = document.getElementById("ai-public-toggle");
 
-// --- Socket Event Handlers ---
+//     // --- Constants ---
+//     const AI_ACTION_PREFIX = "@gemini";
+//     const GIF_MARKER = "GIF:";
 
-socket.on("connect", () => {
-  updateConnectionStatus("Connecting...", true);
-  // Simulate connection status update after a delay
-  setTimeout(() => {
-    if (socket.connected) {
-      updateConnectionStatus("Connected", false);
-    }
-  }, 1300);
-});
+//     // --- Socket Event Handlers ---
 
-socket.on("backend-user-message", (message, id) => {
-  // Only display messages that are not sent by the current client
-  if (socket.id !== id) {
-    addMessage(message, false);
-  }
-});
+//     socket.on("connect", () => {
+//         updateConnectionStatus("Connecting...", "connecting");
+//         setTimeout(() => {
+//             if (socket.connected) {
+//                 updateConnectionStatus("Connected", "connected");
+//             }
+//         }, 1300);
+//     });
 
-socket.on("total-user", (count) => {
-  updateUserCount(count);
-});
+//     socket.on("disconnect", () => {
+//         updateConnectionStatus("Disconnected", "disconnected");
+//         updateUserCount(0);
+//     });
 
-// --- UI Event Handlers ---
+//     socket.on("connect_error", (err) => {
+//         console.error("Connection Error:", err.message);
+//         updateConnectionStatus("Connection Failed", "disconnected");
+//     });
 
-disconnectBtn.addEventListener("click", (e) => {
-  e.preventDefault();
-  if (socket.connected) {
-    updateConnectionStatus("Disconnected", true);
-    socket.disconnect();
-  } else {
-    socket.connect();
-  }
-});
+//     socket.on("backend-user-message", (message, id) => {
+//         if (socket.id !== id) {
+//             addMessage(message, false);
+//         }
+//     });
 
-sendButton.addEventListener("click", handleMessageSend);
+//     socket.on("total-user", (count) => {
+//         updateUserCount(count);
+//     });
 
-inputField.addEventListener("keypress", (e) => {
-  if (e.key === "Enter" && inputField.value.trim()) {
-    handleMessageSend();
-  }
-});
+//     socket.on('ai-response', (data) => {
+//         if (data.error) {
+//             addMessage(`🤖 **Gemini Error:**\n${data.error}`, false);
+//         } else {
+//             addMessage(`🤖 **Gemini (Private):**\n${data.answer}`, false);
+//         }
+//     });
 
-// --- Functions ---
+//     socket.on('public-ai-message', (data) => {
+//         const senderId = data.user === socket.id ? 'You' : `User ${data.user.substring(0, 4)}`;
+//         if (data.error) {
+//             addMessage(`**[Public]** ${senderId} asked Gemini, but there was an error: ${data.error}`, false);
+//         } else {
+//             const publicMessage = `**[Public] ${senderId} asked:**\n*${data.question}*\n\n**🤖 Gemini Replied:**\n${data.answer}`;
+//             addMessage(publicMessage, data.user === socket.id);
+//         }
+//     });
 
-/**
- * Updates the connection status text and toggles a 'connecting' class.
- * @param {string} text - Status text to display.
- * @param {boolean} isConnecting - Whether the connection is in progress.
- */
-function updateConnectionStatus(text, isConnecting) {
-  connectionStatus.textContent = text;
-  connectionStatus.classList.toggle("connecting", isConnecting);
-}
 
-/**
- * Adds a message element to the chat container.
- * @param {string} content - Message text.
- * @param {boolean} isSent - True if the message is sent by the user, false if received.
- */
-function addMessage(content, isSent) {
-    const messageEl = document.createElement("div");
-    messageEl.classList.add("message", isSent ? "sent" : "received");
-  
-    // Convert Markdown to HTML and sanitize it
-    const formattedContent = DOMPurify.sanitize(marked.parse(content));
-  
-    messageEl.innerHTML = `<div class="message-content">${formattedContent}</div>`;
-    chatMessages.appendChild(messageEl);
+//     // --- UI Event Handlers ---
+
+//     if (disconnectBtn) {
+//         disconnectBtn.addEventListener("click", () => {
+//             if (socket.connected) socket.disconnect();
+//             else socket.connect();
+//         });
+//     }
+
+//     if (sendButton && inputField) {
+//         sendButton.addEventListener("click", handleMessageSend);
+//         inputField.addEventListener("keypress", (e) => {
+//             if (e.key === "Enter") {
+//                 e.preventDefault();
+//                 handleMessageSend();
+//             }
+//         });
+//     }
     
-    // Auto-scroll to the latest message
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-}
+//     document.addEventListener('send-gif', (e) => {
+//         const gifUrl = e.detail.url;
+//         if (socket && socket.connected) {
+//             const gifMessage = `${GIF_MARKER}${gifUrl}`;
+//             addMessage(gifMessage, true);
+//             socket.emit("user-message", gifMessage);
+//         } else {
+//             addMessage("Cannot send GIF. You are not connected.", false);
+//         }
+//     });
 
-/**
- * Sends a message and handles AI request if triggered.
- */
-async function handleMessageSend() {
-  const messageContent = inputField.value.trim();
-  if (!messageContent) return;
+//     // --- NEW: Logic for the AI Toggle Button ---
+//     if (inputField && aiPublicToggleBtn) {
+//         // Show or hide the button based on input
+//         inputField.addEventListener('input', () => {
+//             if (inputField.value.trim().toLowerCase().startsWith(AI_ACTION_PREFIX)) {
+//                 aiPublicToggleBtn.style.display = 'flex';
+//             } else {
+//                 aiPublicToggleBtn.style.display = 'none';
+//             }
+//         });
 
-  // Send user's message and clear the input field
-  processAndEmitMessage(messageContent, true);
-  inputField.value = "";
+//         // Handle clicks on the toggle button
+//         aiPublicToggleBtn.addEventListener('click', () => {
+//             const isActive = aiPublicToggleBtn.classList.toggle('active');
+//             // Update the tooltip to reflect the current state
+//             aiPublicToggleBtn.setAttribute('title', `Toggle Public AI (${isActive ? 'On' : 'Off'})`);
+//         });
+//     }
 
-  // If the message is intended for the AI, process the AI request.
-  if (messageContent.startsWith(AI_ACTION_PREFIX)) {
-    const question = messageContent.substring(AI_ACTION_PREFIX.length).trim();
-    if (question) {
-      console.log("AI handler activated");
-      try {
-        const aiResponse = await fetchAIResponse(question);
-        processAndEmitMessage(aiResponse, false);
-      } catch (error) {
-        console.error("Error fetching AI response:", error);
-        processAndEmitMessage("Sorry, an error occurred while processing your request.", false);
-      }
+
+//     // --- Core Functions ---
+
+//     function handleMessageSend() {
+//         if (!inputField || !socket || !socket.connected) {
+//             addMessage("You are not connected.", false);
+//             return;
+//         }
+//         const messageContent = inputField.value.trim();
+//         if (!messageContent) return;
+
+//         addMessage(messageContent, true);
+
+//         if (messageContent.startsWith(AI_ACTION_PREFIX)) {
+//             const question = messageContent.substring(AI_ACTION_PREFIX.length).trim();
+//             if (question) {
+//                 // Check if the new button has the 'active' class
+//                 const isPublic = aiPublicToggleBtn.classList.contains('active');
+//                 socket.emit('ask-ai', { question, isPublic });
+//             }
+//         } else {
+//             socket.emit("user-message", messageContent);
+//         }
+
+//         inputField.value = "";
+//         // Hide and reset the toggle button after sending
+//         aiPublicToggleBtn.style.display = 'none';
+//         aiPublicToggleBtn.classList.remove('active');
+//         aiPublicToggleBtn.setAttribute('title', 'Toggle Public AI (Off)');
+//         inputField.focus();
+//     }
+
+//     function updateConnectionStatus(text, status) {
+//         if (!connectionStatus) return;
+//         connectionStatus.textContent = text;
+//         connectionStatus.className = 'connection-status';
+//         connectionStatus.classList.add(status);
+//         if (disconnectBtn) {
+//             disconnectBtn.classList.toggle('connected', status === 'connected');
+//         }
+//     }
+
+//     function addMessage(content, isSentByMe) {
+//         if (!chatMessages) return;
+
+//         const messageEl = document.createElement("div");
+//         messageEl.classList.add("message", isSentByMe ? "sent" : "received");
+
+//         const messageContentEl = document.createElement("div");
+//         messageContentEl.classList.add("message-content");
+
+//         if (content.startsWith(GIF_MARKER)) {
+//             const gifUrl = content.substring(GIF_MARKER.length);
+//             const img = document.createElement("img");
+//             img.src = gifUrl;
+//             img.alt = "GIF";
+//             messageContentEl.appendChild(img);
+//         } else {
+//             if (typeof marked === 'function' && typeof DOMPurify !== 'undefined') {
+//                 const formattedContent = DOMPurify.sanitize(marked.parse(content), { USE_PROFILES: { html: true } });
+//                 messageContentEl.innerHTML = formattedContent;
+//             } else {
+//                 messageContentEl.textContent = content;
+//                 console.warn("marked.js or DOMPurify not loaded. Displaying raw text.");
+//             }
+//         }
+
+//         messageEl.appendChild(messageContentEl);
+//         chatMessages.appendChild(messageEl);
+//         scrollToBottom();
+//     }
+
+//     function updateUserCount(count) {
+//         if (userCount) {
+//             userCount.textContent = count;
+//         }
+//     }
+
+//     function scrollToBottom() {
+//         if (chatMessages) {
+//             chatMessages.scrollTop = chatMessages.scrollHeight;
+//         }
+//     }
+
+//     // --- Initial Setup ---
+//     addMessage("Welcome to World-Chat! Type '@gemini your question' to talk to the AI.", false);
+// });
+
+
+// Wait for the DOM to be fully loaded before executing any script
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- DOM Element Selection ---
+    const socket = io();
+    const chatMessages = document.querySelector(".chat-messages");
+    const inputField = document.querySelector(".chat-input .input");
+    const sendButton = document.getElementById("send-button");
+    const disconnectBtn = document.getElementById("disconnect-button");
+    const connectionStatus = document.querySelector(".connection-status");
+    const userCount = document.querySelector(".user-count");
+    // Get the new AI toggle checkbox and its container
+    const aiPublicToggle = document.getElementById("ai-public-toggle");
+    const aiToggleContainer = document.querySelector(".ai-toggle-container");
+
+    // --- Constants ---
+    const AI_ACTION_PREFIX = "@gemini";
+    const GIF_MARKER = "GIF:";
+
+    // --- Socket Event Handlers ---
+
+    socket.on("connect", () => {
+        updateConnectionStatus("Connecting...", "connecting");
+        setTimeout(() => {
+            if (socket.connected) {
+                updateConnectionStatus("Connected", "connected");
+            }
+        }, 1300);
+    });
+
+    socket.on("disconnect", () => {
+        updateConnectionStatus("Disconnected", "disconnected");
+        updateUserCount(0);
+    });
+
+    socket.on("connect_error", (err) => {
+        console.error("Connection Error:", err.message);
+        updateConnectionStatus("Connection Failed", "disconnected");
+    });
+
+    socket.on("backend-user-message", (message, id) => {
+        if (socket.id !== id) {
+            addMessage(message, false);
+        }
+    });
+
+    socket.on("total-user", (count) => {
+        updateUserCount(count);
+    });
+
+    socket.on('ai-response', (data) => {
+        if (data.error) {
+            addMessage(`🤖 **Gemini Error:**\n${data.error}`, false);
+        } else {
+            addMessage(`🤖 **Gemini (Private):**\n${data.answer}`, false);
+        }
+    });
+
+    socket.on('public-ai-message', (data) => {
+        const senderId = data.user === socket.id ? 'You' : `User ${data.user.substring(0, 4)}`;
+        if (data.error) {
+            addMessage(`**[Public]** ${senderId} asked Gemini, but there was an error: ${data.error}`, false);
+        } else {
+            const publicMessage = `**[Public] ${senderId} asked:**\n*${data.question}*\n\n**🤖 Gemini Replied:**\n${data.answer}`;
+            addMessage(publicMessage, data.user === socket.id);
+        }
+    });
+
+
+    // --- UI Event Handlers ---
+
+    if (disconnectBtn) {
+        disconnectBtn.addEventListener("click", () => {
+            if (socket.connected) socket.disconnect();
+            else socket.connect();
+        });
     }
-  }
-}
 
-/**
- * Emits the message to the backend and adds it to the chat.
- * @param {string} content - The content of the message.
- * @param {boolean} isSent - Whether the message was sent by the user.
- */
-function processAndEmitMessage(content, isSent) {
-  addMessage(content, isSent);
-  if (isSent) {
-    socket.emit("user-message", content);
-  }
-}
+    if (sendButton && inputField) {
+        sendButton.addEventListener("click", handleMessageSend);
+        inputField.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                handleMessageSend();
+            }
+        });
+    }
+    
+    document.addEventListener('send-gif', (e) => {
+        const gifUrl = e.detail.url;
+        if (socket && socket.connected) {
+            const gifMessage = `${GIF_MARKER}${gifUrl}`;
+            addMessage(gifMessage, true);
+            socket.emit("user-message", gifMessage);
+        } else {
+            addMessage("Cannot send GIF. You are not connected.", false);
+        }
+    });
 
-/**
- * Makes an asynchronous POST request to fetch AI response.
- * @param {string} question - The user's question.
- * @returns {Promise<string>} - The AI's answer.
- */
-async function fetchAIResponse(question) {
-  const response = await fetch("/askAI", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ques: question }),
-  });
-  if (!response.ok) {
-    throw new Error("Network response was not ok");
-  }
-  const data = await response.json();
-  return data.answer;
-}
+    // --- NEW: Logic for the AI Toggle Switch ---
+    if (inputField && aiToggleContainer) {
+        // Show or hide the switch based on input
+        inputField.addEventListener('input', () => {
+            if (inputField.value.trim().toLowerCase().startsWith(AI_ACTION_PREFIX)) {
+                aiToggleContainer.style.display = 'flex';
+            } else {
+                aiToggleContainer.style.display = 'none';
+            }
+        });
+    }
 
-/**
- * Updates the user count display.
- * @param {number} count - The number of connected users.
- */
-function updateUserCount(count) {
-  userCount.textContent = count;
-}
+
+    // --- Core Functions ---
+
+    function handleMessageSend() {
+        if (!inputField || !socket || !socket.connected) {
+            addMessage("You are not connected.", false);
+            return;
+        }
+        const messageContent = inputField.value.trim();
+        if (!messageContent) return;
+
+        addMessage(messageContent, true);
+
+        if (messageContent.startsWith(AI_ACTION_PREFIX)) {
+            const question = messageContent.substring(AI_ACTION_PREFIX.length).trim();
+            if (question) {
+                // Check if the new checkbox is checked
+                const isPublic = aiPublicToggle.checked;
+                socket.emit('ask-ai', { question, isPublic });
+            }
+        } else {
+            socket.emit("user-message", messageContent);
+        }
+
+        inputField.value = "";
+        // Hide and reset the toggle switch after sending
+        aiToggleContainer.style.display = 'none';
+        aiPublicToggle.checked = false;
+        inputField.focus();
+    }
+
+    function updateConnectionStatus(text, status) {
+        if (!connectionStatus) return;
+        connectionStatus.textContent = text;
+        connectionStatus.className = 'connection-status';
+        connectionStatus.classList.add(status);
+        if (disconnectBtn) {
+            disconnectBtn.classList.toggle('connected', status === 'connected');
+        }
+    }
+
+    function addMessage(content, isSentByMe) {
+        if (!chatMessages) return;
+
+        const messageEl = document.createElement("div");
+        messageEl.classList.add("message", isSentByMe ? "sent" : "received");
+
+        const messageContentEl = document.createElement("div");
+        messageContentEl.classList.add("message-content");
+
+        if (content.startsWith(GIF_MARKER)) {
+            const gifUrl = content.substring(GIF_MARKER.length);
+            const img = document.createElement("img");
+            img.src = gifUrl;
+            img.alt = "GIF";
+            messageContentEl.appendChild(img);
+        } else {
+            if (typeof marked === 'function' && typeof DOMPurify !== 'undefined') {
+                const formattedContent = DOMPurify.sanitize(marked.parse(content), { USE_PROFILES: { html: true } });
+                messageContentEl.innerHTML = formattedContent;
+            } else {
+                messageContentEl.textContent = content;
+                console.warn("marked.js or DOMPurify not loaded. Displaying raw text.");
+            }
+        }
+
+        messageEl.appendChild(messageEl);
+        chatMessages.appendChild(messageContentEl);
+        scrollToBottom();
+    }
+
+    function updateUserCount(count) {
+        if (userCount) {
+            userCount.textContent = count;
+        }
+    }
+
+    function scrollToBottom() {
+        if (chatMessages) {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    }
+
+    // --- Initial Setup ---
+    addMessage("Welcome to World-Chat! Type '@gemini your question' to talk to the AI.", false);
+});

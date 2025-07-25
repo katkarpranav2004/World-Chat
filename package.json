@@ -4,20 +4,21 @@
   "main": "app.js",
   "scripts": {
     "build": "netlify deploy --prod",
-    "start": "node app.js"
+    "start": "node app.js",
+    "dev": "nodemon app.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
+    "axios": "^1.7.2",
     "dotenv": "^16.4.7",
     "express": "^4.19.2",
-    "serverless-http": "^3.2.0",
     "socket.io": "^4.7.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
   },
   "keywords": [],
-  "description": ""
+  "description": "A real-time terminal-themed web chat application with AI integration."
 }

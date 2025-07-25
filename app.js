@@ -1,84 +1,137 @@
 const express = require('express');
 const app = express();
-
 const path = require('path');
-
 const http = require('http');
 const { Server } = require('socket.io');
+const axios = require('axios');
+
 require('dotenv').config();
 
 const { GoogleGenerativeAI } = require('@google/generative-ai');
-const ai = new GoogleGenerativeAI(process.env.gemini_api);
 
+// --- Environment Variable Validation ---
+if (!process.env.GEMINI_API_KEY) {
+    console.error("FATAL ERROR: GEMINI_API_KEY is not defined in the .env file.");
+    process.exit(1);
+}
+if (!process.env.GIPHY_API_KEY) {
+    console.warn("WARNING: GIPHY_API_KEY is not defined. The GIF feature will not work.");
+}
+
+const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 const server = http.createServer(app);
 const io = new Server(server, {
     connectionStateRecovery: {}
 });
+
 const PORT = process.env.PORT || 8000;
 
-//Middleware
+// --- Middleware ---
 app.use(express.json());
 app.use(express.static(path.resolve('./public')));
 
+// --- In-Memory Data Stores ---
+let onlineUsers = new Set();
+// Use a Map to store chat session instances for each user
+const userChatSessions = new Map();
 
-let onlineUser = [];
-
+// --- Socket.IO Connection Handling ---
 io.on('connection', (socket) => {
-    onlineUser.push(socket.id);
-    io.emit('total-user', onlineUser.length);
+    console.log(`User connected: ${socket.id}`);
+    onlineUsers.add(socket.id);
+    io.emit('total-user', onlineUsers.size);
+
+    // For each user, create and store a new chat session instance.
+    // This includes a separate history for both private and public chats.
+    userChatSessions.set(socket.id, {
+        privateChat: model.startChat({ history: [] }),
+        publicChat: model.startChat({ history: [] }) // Each user also has a context of the public chat
+    });
+
 
     socket.on('user-message', (message) => {
-        // console.log('Message received: ', message);
         io.emit('backend-user-message', message, socket.id);
     });
 
+    // --- FIXED: AI Question Handler ---
+    socket.on('ask-ai', async ({ question, isPublic }) => {
+        const userSession = userChatSessions.get(socket.id);
+        if (!userSession) {
+            console.error(`Could not find session for user ${socket.id}`);
+            return socket.emit('ai-response', { error: "Could not find your session. Please reconnect." });
+        }
+
+        // Select the appropriate chat session (public or private)
+        const chat = isPublic ? userSession.publicChat : userSession.privateChat;
+
+        try {
+            // Use the SDK's sendMessage method, which handles history correctly
+            const result = await chat.sendMessage(question);
+            const text = result.response.text();
+            
+            if (isPublic) {
+                // Broadcast the public question and response to everyone
+                io.emit('public-ai-message', {
+                    user: socket.id,
+                    question: question,
+                    answer: text
+                });
+            } else {
+                // Send the private response ONLY to the user who asked
+                socket.emit('ai-response', { answer: text });
+            }
+
+        } catch (error) {
+            console.error("Gemini API Error:", error);
+            const errorMessage = "Sorry, the AI is having trouble thinking right now.";
+            // Properly emit errors back to the client
+            if (isPublic) {
+                 io.emit('public-ai-message', { user: socket.id, question: question, error: errorMessage });
+            } else {
+                socket.emit('ai-response', { error: errorMessage });
+            }
+        }
+    });
+
     socket.on('disconnect', () => {
-        onlineUser = onlineUser.filter(id => id !== socket.id);
-        io.emit('total-user', onlineUser.length);
-        console.log('disconnected');
+        console.log(`User disconnected: ${socket.id}`);
+        onlineUsers.delete(socket.id);
+        // Clean up the user's chat session from memory
+        userChatSessions.delete(socket.id);
+        io.emit('total-user', onlineUsers.size);
     });
 });
 
-//express routes
+// --- Express API Routes ---
+
 app.get('/', (req, res) => {
-    res.sendFile('./public/index.html');
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+app.get('/api/gifs', async (req, res) => {
+    const { query } = req.query;
+    const apiKey = process.env.GIPHY_API_KEY;
 
-const chatHistory = []; // Store conversation history (could be in a database for persistence)
+    if (!apiKey) {
+        return res.status(500).json({ error: "Giphy API key is not configured on the server." });
+    }
 
-app.post('/askAI', async (req, res) => {
-    const { ques } = req.body;
-
-    // Construct the message with context
-    chatHistory.push({ role: "user", parts: [{ text: ques }] }); 
+    const url = query
+        ? `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(query)}&limit=24&rating=g`
+        : `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=24&rating=g`;
 
     try {
-        const model = ai.getGenerativeModel({ model: "gemini-2.0-flash" });
-
-        const result = await model.generateContent({
-            contents: chatHistory, 
-            generationConfig: { temperature: 0.5, maxOutputTokens: 50 },
-        });
-
-        // Extract AI response
-        const text = result.response.candidates[0].content.parts[0].text || "No response from AI";
-
-        // Save AI response in history
-        chatHistory.push({ role: "model", parts: [{ text }] });
-
-        // console.log(text);
-        res.json({ answer: text });
-
+        const response = await axios.get(url);
+        res.json(response.data);
     } catch (error) {
-        console.error("gemini_api_error", error);
-        res.status(500).json({ error: "AI processing error" });
+        console.error("Giphy API proxy error:", error.message);
+        res.status(500).json({ error: "Failed to fetch GIFs." });
     }
 });
 
-
-//listing to server
+// --- Server Initialization ---
 server.listen(PORT, () => {
-    console.log('\nServer is live on: ' + PORT);
-})
+    console.log(`\nServer is live on port: ${PORT}`);
+});

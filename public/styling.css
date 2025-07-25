@@ -1,18 +1,34 @@
+/* --- Base Styles & Variables --- */
 :root {
     --bg-color: #2a2438;
     --text-color: #f7e9d7;
-    --accent-color: #c092f430;
-    --secondary-color: #70a288;
-    --tertiary-color: #ffd166;
-    --quaternary-color: #247ba0;
+    --accent-color: #c092f430; /* Header background */
+    --secondary-color: #70a288; /* Sent messages, scrollbars */
+    --tertiary-color: #ffd166; /* Send button, highlights */
+    --quaternary-color: #247ba0; /* Send button hover */
+    --received-message-bg: rgba(242, 95, 92, 0.4); /* Received messages */
+    --picker-bg: rgba(32, 27, 45, 0.97); /* Slightly adjusted picker background */
+    --input-bg: rgba(247, 233, 215, 0.1); /* Input field background */
+    --status-text-color: #7FFF00; /* Status bar text */
+    --border-color: rgba(247, 233, 215, 0.5); /* More visible border for pickers */
+    --shadow-color: rgba(0, 0, 0, 0.5); /* Picker shadow */
+    --hover-glow-color: rgba(255, 209, 102, 0.6); /* GIF hover glow */
+    /* Added subtle glow color based on border-color */
+    --border-glow-color: rgba(247, 233, 215, 0.15);
+
+    /* Animation variables */
+    --picker-transition-duration: 0.35s; /* Slightly longer for smoother effect */
+    --picker-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1); /* Smoother ease-out */
 }
 
+/* --- Body & HTML --- */
 body,
 html {
     margin: 0;
     padding: 0;
     font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
     background-color: #000000;
+    /* Background pattern */
     background-image:
         radial-gradient(white, rgba(255, 255, 255, .2) 2px, transparent 40px),
         radial-gradient(white, rgba(255, 255, 255, .15) 1px, transparent 30px),
@@ -21,103 +37,49 @@ html {
     background-size: 550px 550px, 350px 350px, 250px 250px, 150px 150px;
     background-position: 0 0, 40px 60px, 130px 270px, 70px 100px;
     animation: backgroundShift 60s linear infinite;
-    color: #FFFFFF;
+    color: #FFFFFF; /* Default text color */
     height: 100vh;
-    overflow: hidden;
+    overflow: hidden; /* Prevent body scroll */
     font-size: 16px;
-    cursor: none;
+    cursor: none; /* Use custom cursor */
 }
 
+/* --- Background Animations --- */
 @keyframes backgroundShift {
-    0% {
-        background-position: 0 0, 40px 60px, 130px 270px, 70px 100px;
-    }
-
-    100% {
-        background-position: 550px 550px, 590px 610px, 680px 820px, 620px 650px;
-    }
+    0% { background-position: 0 0, 40px 60px, 130px 270px, 70px 100px; }
+    100% { background-position: 550px 550px, 590px 610px, 680px 820px, 620px 650px; }
 }
 
+/* Overlay for color shift effect */
 body::before {
     content: "";
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
     background: linear-gradient(135deg,
-            rgba(255, 0, 0, 0.1) 0%,
-            rgba(0, 255, 0, 0.1) 25%,
-            rgba(0, 0, 255, 0.1) 50%,
-            rgba(255, 255, 0, 0.1) 75%,
-            rgba(255, 0, 255, 0.1) 100%);
+            rgba(255, 0, 0, 0.08) 0%, /* Slightly less intense */
+            rgba(0, 255, 0, 0.08) 25%,
+            rgba(0, 0, 255, 0.08) 50%,
+            rgba(255, 255, 0, 0.08) 75%,
+            rgba(255, 0, 255, 0.08) 100%);
     background-size: 200% 200%;
-    animation: colorShift 30s ease infinite;
+    animation: colorShift 45s ease infinite; /* Slower animation */
     z-index: 0;
-    /* Ensure this is greater than the background */
-    pointer-events: none;
+    pointer-events: none; /* Allow clicks through */
 }
 
 @keyframes colorShift {
-    0% {
-        background-position: 0% 50%;
-    }
-
-    50% {
-        background-position: 100% 50%;
-    }
-
-    100% {
-        background-position: 0% 50%;
-    }
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
 }
 
-@keyframes colorShift {
-    0% {
-        background-position: 0% 50%;
-    }
-
-    50% {
-        background-position: 100% 50%;
-    }
-
-    100% {
-        background-position: 0% 50%;
-    }
-}
-
-/* terminal style */
-
-@keyframes TurnOn {
-    0% {
-        transform: scale(0);
-        opacity: 0;
-        filter: brightness(0) saturate(0);
-    }
-
-    20% {
-        transform: scale(0.1);
-        opacity: 0.4;
-        filter: brightness(0.1) saturate(0.4);
-    }
-
-    50% {
-        transform: scale(0.9);
-        opacity: 0.8;
-        filter: brightness(0.5) saturate(0.8);
-    }
-
-    80% {
-        transform: scale(1.1);
-        opacity: 1;
-        filter: brightness(1.5) saturate(1.2);
-    }
-
-    100% {
-        transform: scale(1);
-        opacity: 1;
-        filter: brightness(1) saturate(1);
-    }
+/* --- Terminal Styles --- */
+@keyframes TurnOn { /* Initial terminal appearance */
+    0% { transform: scale(0); opacity: 0; filter: brightness(0) saturate(0); }
+    20% { transform: scale(0.1); opacity: 0.4; filter: brightness(0.1) saturate(0.4); }
+    50% { transform: scale(0.9); opacity: 0.8; filter: brightness(0.5) saturate(0.8); }
+    80% { transform: scale(1.05); opacity: 1; filter: brightness(1.5) saturate(1.5); } /* Slightly less bright */
+    100% { transform: scale(1); opacity: 1; filter: brightness(1) saturate(1); }
 }
 
 .terminal {
@@ -125,429 +87,485 @@ body::before {
     max-width: 800px;
     height: 80vh;
     margin: 5vh auto;
-    background-color: rgba(42, 36, 56, 0.8);
-    border: 2px solid var(--text-color);
-    box-shadow: 0 0 20px rgba(247, 233, 215, 0.2);
+    background-color: rgba(42, 36, 56, 0.6); /* More opaque */
+    border: 2px solid var(--border-color); /* Use variable */
+    /* --- MODIFIED: Added subtle inner glow --- */
+    /* Format: offset-x | offset-y | blur-radius | spread-radius | color */
+    box-shadow:
+        /* Subtle glow close to the border */
+        0 0 8px 2px var(--border-glow-color),
+        /* Original outer shadow for depth */
+        0 0 25px rgba(247, 233, 215, 0.25);
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: hidden; /* Clip content */
     border-radius: 10px;
     z-index: 1;
     animation: TurnOn 0.5s ease-in-out;
+    position: relative; /* Context for absolute positioning */
 }
 
-
+/* --- Terminal Header --- */
 .terminal-header {
     position: relative;
     background-color: var(--accent-color);
     color: var(--text-color);
-    padding: 10px;
-    font-size: 1.5em;
+    padding: 10px 15px; /* More padding */
+    font-size: 1.4em; /* Adjust size */
     text-align: center;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-    animation: TurnOn 0.6s ease-in-out;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4); /* Refined shadow */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* Subtle separator */
+    /* Removed TurnOn animation from header, terminal animation covers it */
 }
 
-.disconnect-button span {
-    font-size: 25px;
-    margin-right: 5px;
-    color:#f7e9d7;
-    font-weight: bold;
-}
-
+/* Disconnect Button */
 .disconnect-button {
     position: absolute;
     top: 50%;
-    right: 10px;
+    right: 15px; /* More space */
     transform: translateY(-50%);
     background: none;
     border: none;
     font-size: 18px;
-    cursor: pointer;
+    cursor: none; /* Use custom cursor */
     padding: 5px;
+    transition: transform 0.2s ease; /* Add transition */
+}
+.disconnect-button span {
+    font-size: 25px;
+    color: var(--text-color);
+    font-weight: bold;
+    display: block; /* Ensure transform works correctly */
     transition: color 0.3s ease;
-    cursor: none;
 }
+.disconnect-button:hover span {
+    color: var(--tertiary-color); /* Highlight on hover */
+}
+.disconnect-button:active span {
+    transform: scale(0.9); /* Click effect */
+}
+
+/* Tooltip for disconnect button - consider a JS solution for better accessibility */
 .disconnect-button span:hover::after {
-    content: "Connect or Disconnect";
-    display: inline-block;
+    content: "Connect / Disconnect";
     position: absolute;
-    /* width: 100px; */
-    top: 12%;
-    left: 0%;
-    transform: translateX(-100%);
-    background-color: #000000;
-    color: #FFFFFF;
-    padding: 5px;
+    top: 110%; /* Position below */
+    right: 0;
+    transform: translateX(0); /* Adjust as needed */
+    background-color: #111; /* Dark background */
+    color: #eee;
+    padding: 4px 8px;
     font-size: 10px;
-    border-radius: 5px;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 10; /* Ensure tooltip is on top */
+    opacity: 0.9;
 }
 
-@media (max-width: 600px) {
-    .disconnect-button {
-        font-size: 16px;
-        right: 5px;
-    }
-}
-
+/* --- Status Bar --- */
 .status-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background-color: rgba(0, 0, 0, 0.5);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    padding: 5px 10px;
-    font-family: Verdana, Geneva, Tahoma, sans-serif;
-    font-size: 10px;
+    background-color: rgba(0, 0, 0, 0.6); /* Darker status bar */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15); /* Slightly stronger border */
+    padding: 6px 12px; /* Adjust padding */
+    font-family: 'Consolas', 'Monaco', monospace; /* Monospace font */
+    font-size: 11px; /* Slightly larger */
 }
 
 .connection-status,
 .users-online,
 .clock {
-    color: #7FFF00;
-    /* Bright green for visibility */
+    color: var(--status-text-color);
     flex: 1;
     text-align: center;
 }
+.connection-status { text-align: left; }
+.users-online { text-align: right; }
 
-.connection-status {
-    text-align: left;
-}
-
-.users-online {
-    text-align: right;
-}
-
+/* Clock visibility */
 .clock {
     transition: opacity 0.5s ease-in-out;
-    opacity: 0;
+    opacity: 0; /* Start hidden */
 }
+.clock.show { opacity: 1; }
 
-.clock.show {
-    opacity: 1;
-}
-
-
-/* Optional: Add a blinking effect for the connection status */
+/* Blinking effect for connecting status */
 @keyframes blink {
-    0% {
-        opacity: 1;
-    }
-
-    50% {
-        opacity: 0;
-    }
-
-    100% {
-        opacity: 1;
-    }
+    50% { opacity: 0.3; }
 }
-
 .connection-status.connecting {
-    animation: blink 1s infinite;
+    animation: blink 1.2s infinite steps(1, end); /* Stepped blink */
 }
+.user-count { font-weight: bold; }
 
-.user-count {
-    font-weight: bold;
-}
-
+/* --- Chat Messages Area --- */
 .chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px;
+    flex: 1; /* Take remaining space */
+    overflow-y: auto; /* Enable scrolling */
+    padding: 15px 20px; /* Adjust padding */
     scrollbar-width: thin;
-    scrollbar-color: var(--secondary-color) var(--bg-color);
+    scrollbar-color: var(--secondary-color) transparent; /* Nicer scrollbar */
 }
-
-.chat-messages::-webkit-scrollbar {
-    width: 8px;
-}
-
-.chat-messages::-webkit-scrollbar-track {
-    background: var(--bg-color);
-}
-
+.chat-messages::-webkit-scrollbar { width: 8px; }
+.chat-messages::-webkit-scrollbar-track { background: transparent; } /* Transparent track */
 .chat-messages::-webkit-scrollbar-thumb {
     background-color: var(--secondary-color);
     border-radius: 4px;
+    border: 2px solid var(--bg-color); /* Match terminal bg */
 }
 
+/* Individual Messages */
 .message {
     margin-bottom: 15px;
     opacity: 0;
-    animation: fadeIn 0.3s forwards;
+    animation: fadeIn 0.4s forwards ease-out; /* Smoother fade in */
+    display: flex; /* Use flex for alignment */
+    max-width: 85%; /* Limit message width */
 }
-
-@keyframes fadeIn {
-    to {
-        opacity: 1;
-    }
-}
-
-.message-content {
-    display: inline-block;
-    padding: 8px 12px;
-    border-radius: 15px;
-    max-width: 80%;
-    word-wrap: break-word;
-}
+@keyframes fadeIn { to { opacity: 1; } }
 
 .message.sent {
-    text-align: right;
+    margin-left: auto; /* Align right */
+    justify-content: flex-end; /* Align content right */
+}
+.message.received {
+    margin-right: auto; /* Align left */
+      justify-content: flex-start; /* Align content left */
+}
+
+/* Message Content Bubble */
+.message-content {
+    padding: 10px 15px; /* More padding */
+    border-radius: 18px; /* Rounder bubbles */
+    word-wrap: break-word; /* Wrap long words */
+    white-space: pre-wrap; /* Preserve newlines */
+    line-height: 1.4; /* Better readability */
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2); /* Subtle shadow */
 }
 
 .message.sent .message-content {
-    background-color: rgba(112, 162, 136, 0.4);
-    color: var(--text-color);
+    background-color: var(--secondary-color);
+    color: var(--bg-color); /* Darker text for contrast */
+    border-bottom-right-radius: 5px; /* Tail effect */
 }
 
 .message.received .message-content {
-    background-color: rgba(242, 95, 92, 0.4);
+    background-color: var(--received-message-bg);
     color: var(--text-color);
+    border-bottom-left-radius: 5px; /* Tail effect */
 }
 
+/* Images (GIFs) within messages */
+.message-content img {
+     max-width: 100%; /* Ensure images fit bubble */
+     max-height: 200px; /* Limit GIF height */
+     display: block;
+     margin-top: 8px; /* Space if text precedes */
+     border-radius: 8px;
+}
+
+/* --- Chat Input Area --- */
 .chat-input {
     display: flex;
-    padding: 10px;
-    background-color: rgba(42, 36, 56, 0.9);
-    border-top: 1px solid var(--text-color);
-    animation: TurnOn 0.6s ease-in-out;
+    align-items: center; /* Align items vertically */
+    padding: 12px 15px; /* Adjust padding */
+    background-color: rgba(42, 36, 56, 0.95); /* Slightly darker */
+    border-top: 1px solid rgba(255, 255, 255, 0.1); /* Subtle top border */
+    position: relative; /* Positioning context for pickers */
+    /* Removed TurnOn animation */
 }
 
-.input {
-    cursor: none;
-}
-
-.chat-input input {
-    flex: 1;
-    background-color: rgba(247, 233, 215, 0.1);
-    border: none;
+/* Text Input Field */
+.chat-input input[type="text"] { /* More specific selector */
+    flex: 1; /* Take available space */
+    background-color: var(--input-bg);
+    border: 1px solid transparent; /* Placeholder for focus */
     color: var(--text-color);
-    font-family: 'VT323', monospace;
-    font-size: 1.2em;
-    padding: 8px 12px;
-    margin-right: 10px;
-    border-radius: 5px;
+    font-family: inherit; /* Use body font */
+    font-size: 1em; /* Adjust size */
+    padding: 10px 15px; /* Adjust padding */
+    margin: 0 8px; /* Add margin */
+    border-radius: 20px; /* Pill shape */
+    transition: border-color 0.3s, background-color 0.3s;
+    outline: none;
+    cursor: none; /* Use custom cursor */
+}
+.chat-input input[type="text"]:focus {
+    background-color: rgba(247, 233, 215, 0.15); /* Slightly lighter on focus */
+    border-color: var(--tertiary-color);
 }
 
+/* Buttons (Emoji, GIF, Send) */
 .chat-input button {
+    background-color: transparent; /* Make base transparent */
+    color: var(--text-color);
+    border: none;
+    padding: 8px; /* Uniform padding */
+    font-size: 1.6em; /* Larger icons */
+    cursor: none; /* Use custom cursor */
+    transition: color 0.3s, transform 0.1s;
+    border-radius: 50%; /* Circular buttons */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px; /* Fixed size */
+    height: 40px; /* Fixed size */
+    margin: 0 3px; /* Spacing */
+    position: relative; /* Needed for offsetLeft calculation */
+}
+.chat-input button:hover {
+    color: var(--tertiary-color); /* Highlight on hover */
+}
+.chat-input button:active {
+    transform: scale(0.9); /* Click effect */
+}
+
+/* Send Button Specifics */
+#send-button {
     background-color: var(--tertiary-color);
     color: var(--bg-color);
-    border: none;
-    padding: 8px 15px;
-    font-family: 'VT323', monospace;
-    font-size: 1.2em;
-    cursor: none;
-    transition: background-color 0.3s, transform 0.1s;
-    border-radius: 5px;
+    font-family: inherit; /* Match font */
+    font-size: 0.9em; /* Smaller text */
+    font-weight: bold;
+    width: auto; /* Auto width */
+    padding: 8px 18px; /* Horizontal padding */
+    border-radius: 20px; /* Pill shape */
 }
-
-.chat-input button:hover {
+#send-button:hover {
     background-color: var(--quaternary-color);
-    transform: translateY(-2px);
-}
-
-.chat-input button:active {
-    transform: translateY(0);
-}
-
-.chat-input input:focus {
-    outline: none;
-    font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-    font-size: 0.9em;
-}
-
-#emoji-button,
-#gif-button {
-    background-color: transparent;
     color: var(--text-color);
-    font-size: 1.5em;
-    padding: 5px 10px;
-    margin-right: 5px;
-    font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-
 }
 
-#emoji-picker,
-#gif-picker {
+/* --- Picker Base Styles --- */
+.picker-container {
     position: absolute;
-    bottom: 70px;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: rgba(42, 36, 56, 0.9);
-    border: 1px solid var(--text-color);
-    border-radius: 5px;
+    bottom: calc(100% + 8px); /* Position above the chat-input bar with gap */
+    background-color: var(--picker-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px; /* More rounded */
     z-index: 1000;
+    box-shadow: 0 6px 20px var(--shadow-color); /* Enhanced shadow */
+
+    /* Animation styles - "Cloth Stretch" / ScaleY */
+    opacity: 0;
+    transform: scaleY(0); /* Start fully collapsed vertically */
+    transform-origin: bottom left;
+    transition: opacity calc(var(--picker-transition-duration) * 0.8) ease-out, /* Faster opacity fade-in */
+                transform var(--picker-transition-duration) var(--picker-timing-function);
+                /* Removed left transition */
+    pointer-events: none; /* Prevent interaction when hidden */
+    max-width: 90vw;
+    max-height: 50vh;
+    overflow: hidden; /* Keep hidden during transition */
+    display: flex;
+    flex-direction: column;
 }
 
+/* --- Picker Visible State --- */
+.picker-container.visible {
+    opacity: 1;
+    transform: scaleY(1); /* Expand to full height */
+    pointer-events: auto;
+    /* overflow: visible; */ /* Keep hidden if content might overflow bounds */
+     overflow: hidden; /* Let internal scrolling handle overflow */
+}
+
+/* --- Specific Picker Positioning & Sizing --- */
+#emoji-picker {
+    left: 10px; /* Position near the emoji button */
+    width: 350px; /* Default width */
+    height: 430px; /* Default height */
+    /* transform-origin set in base */
+}
+
+#gif-picker {
+    left: 55px; /* Position near the GIF button */
+    width: 330px; /* Adjust width */
+    height: 400px; /* Adjust height */
+    padding: 10px; /* Internal padding */
+    box-sizing: border-box; /* Include padding in dimensions */
+     /* transform-origin set in base */
+}
+
+/* --- GIF Picker Internal Styles --- */
 #gif-search {
-    width: 100%;
-    padding: 8px;
+    width: 100%; /* Full width within padding */
+    padding: 10px 12px; /* Adjust padding */
     margin-bottom: 10px;
     background-color: rgba(247, 233, 215, 0.1);
-    border: none;
+    border: 1px solid rgba(247, 233, 215, 0.3);
     color: var(--text-color);
-    font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
-    font-size: 1em;
+    font-family: inherit; /* Match font */
+    font-size: 0.95em;
+    border-radius: 6px; /* Consistent rounding */
+    box-sizing: border-box;
+    outline: none;
+}
+#gif-search:focus {
+    border-color: var(--tertiary-color);
+    background-color: rgba(247, 233, 215, 0.15);
 }
 
 #gif-results {
     display: flex;
     flex-wrap: wrap;
-    justify-content: space-around;
-    max-height: 300px;
+    justify-content: flex-start; /* Align items to start */
+    align-content: flex-start; /* Align lines to start */
     overflow-y: auto;
+    flex-grow: 1;
+    scrollbar-width: thin;
+    scrollbar-color: var(--secondary-color) transparent;
+    gap: 8px; /* Use gap for spacing */
+    padding: 2px; /* Small padding around grid */
+}
+#gif-results::-webkit-scrollbar { width: 6px; }
+#gif-results::-webkit-scrollbar-track { background: transparent; }
+#gif-results::-webkit-scrollbar-thumb {
+    background-color: var(--secondary-color);
+    border-radius: 3px;
 }
 
 #gif-results img {
-    width: 100px;
-    height: 100px;
+    width: calc(33.333% - 6px); /* Adjust for 3 columns with gap */
+    aspect-ratio: 1 / 1;
     object-fit: cover;
-    margin: 5px;
+    /* margin: 0; */ /* Removed margin, using gap */
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+    border-radius: 6px; /* Match search input */
+    border: 1px solid transparent;
+    display: block; /* Prevent extra space */
 }
-
 #gif-results img:hover {
-    transform: scale(1.1);
+    transform: scale(1.06);
+    box-shadow: 0 0 10px var(--hover-glow-color);
+    border-color: var(--tertiary-color);
 }
 
+/* Loading/Error message styles */
+#gif-results p {
+    color: var(--text-color);
+    padding: 20px; /* More padding */
+    text-align: center;
+    width: 100%;
+    font-style: italic;
+}
+
+/* --- Custom Cursor --- */
 .custom-cursor {
-    width: 10px;
-    height: 10px;
+    width: 12px; /* Slightly larger */
+    height: 12px;
     border: 2px solid var(--text-color);
     border-radius: 50%;
     position: fixed;
     pointer-events: none;
     z-index: 9999;
-    mix-blend-mode: difference;
-    transition: transform 0.2s;
-    display: flex;
+    mix-blend-mode: difference; /* Keep difference blend */
+    transition: transform 0.15s ease-out; /* Adjust timing */
+    display: none; /* Hide by default */
     align-items: center;
     justify-content: center;
 }
-
 .cursor-dot {
-    width: 3px;
-    height: 3px;
+    width: 4px; /* Slightly larger */
+    height: 4px;
     background-color: var(--text-color);
     border-radius: 50%;
     position: fixed;
     pointer-events: none;
     z-index: 10000;
     mix-blend-mode: difference;
-    transition: transform 0.2s;
+    transition: transform 0.08s ease-out; /* Adjust timing */
+    display: none; /* Hide by default */
+}
+/* Show cursor only on devices that support hover */
+@media (hover: hover) and (pointer: fine) {
+    .custom-cursor { display: flex; }
+    .cursor-dot { display: block; } /* Use block for single dot */
+    body { cursor: none; }
+    .chat-input button, .chat-input input, #gif-results img { cursor: none; }
 }
 
-/* Responsive Styles */
+
+/* --- Responsive Adjustments --- */
 @media (max-width: 600px) {
     .terminal {
-        width: 95%;
-        height: 90vh;
-        margin: 2.5vh auto;
+        width: 98%; /* Almost full width */
+        height: 95vh; /* Taller on mobile */
+        margin: 1vh auto;
     }
+    .terminal-header { font-size: 1.1em; }
+    .status-bar { font-size: 9px; padding: 5px 10px; }
+    .chat-messages { padding: 10px; }
+    .message { max-width: 90%; }
+    .message-content { padding: 8px 12px; border-radius: 15px; }
 
-    .terminal-header {
-        font-size: 1.2em;
+    .chat-input { padding: 8px 10px; }
+    .chat-input input[type="text"] { padding: 8px 12px; font-size: 0.95em; }
+    .chat-input button { font-size: 1.4em; width: 36px; height: 36px; }
+    #send-button { font-size: 0.85em; padding: 7px 15px; }
+
+    /* Adjust picker positions and sizes for mobile */
+    .picker-container {
+        max-width: calc(100% - 10px); /* Limit width slightly less than full */
+        max-height: 45vh; /* Adjust max height */
+        left: 5px !important; /* Force left alignment */
+        right: 5px;
+        width: auto; /* Let max-width control */
     }
+    #emoji-picker { height: 38vh; max-width: 320px; } /* Adjust height & max-width */
+    #gif-picker { height: 38vh; max-width: 300px; } /* Adjust height & max-width */
 
-    .chat-messages {
-        padding: 10px;
-    }
-
-    .message-content {
-        max-width: 90%;
-    }
-
-    .chat-input button,
-    #emoji-button,
-    #gif-button {
-        font-size: 1em;
-        padding: 5px 8px;
+    #gif-results img {
+        width: calc(33.333% - 6px); /* Maintain 3 columns */
     }
 }
 
 @media (max-width: 400px) {
     .chat-input {
-        flex-wrap: wrap;
+         flex-wrap: wrap;
+         padding: 8px;
     }
-
-    .chat-input input {
-        flex: 1 1 100%;
-        margin-right: 0;
-        margin-bottom: 10px;
+    .chat-input input[type="text"] {
+        order: 1; /* Place input first */
+        flex-basis: 100%;
+        margin: 0 0 8px 0;
     }
-
-    .chat-input button {
-        flex: 1 1 auto;
+    /* Wrap buttons in a div for better control */
+    .chat-input .buttons-wrapper {
+         order: 2; /* Place buttons below */
+         display: flex;
+         width: 100%;
+         justify-content: space-between; /* Distribute space */
     }
-
-    #emoji-button,
-    #gif-button {
-        flex: 0 1 auto;
+    .chat-input .buttons-wrapper #send-button {
+         margin-left: auto; /* Push send button to the right */
     }
-}
+     /* Add this div in your index.html around the buttons if using this */
+     /* <div class="buttons-wrapper"> <button id="emoji-button">...</button> ... </div> */
 
-@media (max-width: 300px) {
 
-    .chat-input button,
-    #emoji-button,
-    #gif-button {
-        padding: 5px 5px;
-        font-size: 0.9em;
-    }
-
-    .terminal-header {
-        font-size: 1em;
-    }
-
-    .status-bar {
-        font-size: 8px;
-    }
-}
-
-/* High DPI Device Styles */
-@media (-webkit-min-device-pixel-ratio: 2),
-(min-resolution: 192dpi) {
-    body {
-        background-size: 275px 275px, 175px 175px, 125px 125px, 75px 75px;
-    }
+     .terminal-header { font-size: 1em; }
+     .status-bar { font-size: 8px; }
 }
 
 /* Reduced Motion Preferences */
 @media (prefers-reduced-motion: reduce) {
-
-    body,
-    body::before,
-    .terminal,
-    .terminal-header,
-    .chat-input,
-    .message,
-    .connection-status.connecting {
-        animation: none;
+    body, body::before, .terminal, .message, .connection-status.connecting, .picker-container {
+        animation: none !important;
+        transition: none !important;
     }
-
-    .chat-input button,
-    #gif-results img {
-        transition: none;
+    .chat-input button, #gif-results img, .custom-cursor, .cursor-dot {
+        transition: none !important;
     }
-}
-
-/* Touch Screen Adjustments */
-@media (hover: none) and (pointer: coarse) {
-    body {
-        cursor: none;
+    /* Ensure pickers are visible without transition using display */
+     .picker-container {
+        /* Remove opacity/transform/transition */
+        display: none; /* Hide by default */
     }
-
-    .custom-cursor,
-    .cursor-dot {
-        display: hidden;
-    }
-
-    .custom-cursor,
-    .cursor-dot,
-    .chat-input button,
-    .chat-input input {
-        cursor: none;
+    .picker-container.visible {
+        display: flex; /* Show when visible */
     }
 }

@@ -1,4 +1,3 @@
-// Wait for the DOM to be fully loaded before executing any script
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- DOM Element Selection ---
@@ -12,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Get the new AI toggle checkbox and its container
     const aiPublicToggle = document.getElementById("ai-public-toggle");
     const aiToggleContainer = document.querySelector(".ai-toggle-container");
+
 
     // --- Constants ---
     const AI_ACTION_PREFIX = "@gemini";
@@ -49,20 +49,31 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('ai-response', (data) => {
-        if (data.error) {
-            addMessage(`🤖 **Gemini Error:**\n${data.error}`, false);
-        } else {
-            addMessage(`🤖 **Gemini (Private):**\n${data.answer}`, false);
+        const loaderMessage = document.getElementById('ai-loader-message');
+        if (loaderMessage) {
+            let content;
+            if (data.error) {
+                content = `🤖 **Gemini Error:**\n${data.error}`;
+            } else {
+                content = `🤖 **Gemini (Private):**\n${data.answer}`;
+            }
+            loaderMessage.innerHTML = DOMPurify.sanitize(marked.parse(content), { USE_PROFILES: { html: true } });
+            loaderMessage.removeAttribute('id');
         }
     });
 
     socket.on('public-ai-message', (data) => {
-        const senderId = data.user === socket.id ? 'You' : `User ${data.user.substring(0, 4)}`;
-        if (data.error) {
-            addMessage(`**[Public]** ${senderId} asked Gemini, but there was an error: ${data.error}`, false);
-        } else {
-            const publicMessage = `**[Public] ${senderId} asked:**\n*${data.question}*\n\n**🤖 Gemini Replied:**\n${data.answer}`;
-            addMessage(publicMessage, data.user === socket.id);
+        const loaderMessage = document.getElementById('ai-loader-message');
+        if (loaderMessage) {
+            const senderId = data.user === socket.id ? 'You' : `User ${data.user.substring(0, 4)}`;
+            let content;
+            if (data.error) {
+                content = `**[Public]** ${senderId} asked Gemini, but there was an error: ${data.error}`;
+            } else {
+                content = `**[Public] ${senderId} asked:**\n*${data.question}*\n\n**🤖 Gemini Replied:**\n${data.answer}`;
+            }
+            loaderMessage.innerHTML = DOMPurify.sanitize(marked.parse(content), { USE_PROFILES: { html: true } });
+            loaderMessage.removeAttribute('id');
         }
     });
 
@@ -86,6 +97,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
+
+
     document.addEventListener('send-gif', (e) => {
         const gifUrl = e.detail.url;
         if (socket && socket.connected) {
@@ -125,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (messageContent.startsWith(AI_ACTION_PREFIX)) {
             const question = messageContent.substring(AI_ACTION_PREFIX.length).trim();
             if (question) {
+                addMessage('<div class="loader"><div class="red bar"></div><div class="orange bar"></div><div class="yellow bar"></div><div class="green bar"></div><div class="blue bar"></div><div class="violet bar"></div></div>', false, 'ai-loader-message');
                 // Check if the new checkbox is checked
                 const isPublic = aiPublicToggle.checked;
                 socket.emit('ask-ai', { question, isPublic });
@@ -150,7 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function addMessage(content, isSentByMe) {
+    function addMessage(content, isSentByMe, id = null) {
         if (!chatMessages) return;
 
         const messageEl = document.createElement("div");
@@ -158,6 +172,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const messageContentEl = document.createElement("div");
         messageContentEl.classList.add("message-content");
+        if (id) {
+            messageContentEl.id = id;
+        }
 
         if (content.startsWith(GIF_MARKER)) {
             const gifUrl = content.substring(GIF_MARKER.length);
@@ -165,6 +182,8 @@ document.addEventListener('DOMContentLoaded', () => {
             img.src = gifUrl;
             img.alt = "GIF";
             messageContentEl.appendChild(img);
+        } else if (content.startsWith('<div class="loader">')) {
+            messageContentEl.innerHTML = content;
         } else {
             if (typeof marked === 'function' && typeof DOMPurify !== 'undefined') {
                 const formattedContent = DOMPurify.sanitize(marked.parse(content), { USE_PROFILES: { html: true } });

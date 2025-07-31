@@ -19,7 +19,7 @@ if (!process.env.GIPHY_API_KEY) {
 }
 
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
+const model = ai.getGenerativeModel({ model: process.env.GEMINI_MODEL || "gemini-2.5-flash" });
 
 const server = http.createServer(app);
 const io = new Server(server, {

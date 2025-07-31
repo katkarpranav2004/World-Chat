@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Get the new AI toggle checkbox and its container
     const aiPublicToggle = document.getElementById("ai-public-toggle");
     const aiToggleContainer = document.querySelector(".ai-toggle-container");
-
+    
 
     // --- Constants ---
     const AI_ACTION_PREFIX = "@gemini";
@@ -50,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     socket.on('ai-response', (data) => {
         const loaderMessage = document.getElementById('ai-loader-message');
-        if (loaderMessage) {
+        if (loaderMessage && !aiPublicToggle.checked) {
             let content;
             if (data.error) {
                 content = `🤖 **Gemini Error:**\n${data.error}`;
@@ -74,6 +74,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             loaderMessage.innerHTML = DOMPurify.sanitize(marked.parse(content), { USE_PROFILES: { html: true } });
             loaderMessage.removeAttribute('id');
+        } else {
+            // This is a public message from another user, so just add it
+            const senderId = data.user === socket.id ? 'You' : `User ${data.user.substring(0, 4)}`;
+            let content;
+            if (data.error) {
+                content = `**[Public]** ${senderId} asked Gemini, but there was an error: ${data.error}`;
+            } else {
+                content = `**[Public] ${senderId} asked:**\n*${data.question}*\n\n**🤖 Gemini Replied:**\n${data.answer}`;
+            }
+            addMessage(content, false);
         }
     });
 
@@ -97,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-
+    
 
     document.addEventListener('send-gif', (e) => {
         const gifUrl = e.detail.url;
@@ -133,18 +143,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const messageContent = inputField.value.trim();
         if (!messageContent) return;
 
-        addMessage(messageContent, true);
+        const messageId = addMessage(messageContent, true);
 
         if (messageContent.startsWith(AI_ACTION_PREFIX)) {
             const question = messageContent.substring(AI_ACTION_PREFIX.length).trim();
             if (question) {
-                addMessage('<div class="loader"><div class="red bar"></div><div class="orange bar"></div><div class="yellow bar"></div><div class="green bar"></div><div class="blue bar"></div><div class="violet bar"></div></div>', false, 'ai-loader-message');
-                // Check if the new checkbox is checked
                 const isPublic = aiPublicToggle.checked;
+                addMessage('<div class="loader"><div class="red bar"></div><div class="orange bar"></div><div class="yellow bar"></div><div class="green bar"></div><div class="blue bar"></div><div class="violet bar"></div></div>', false, 'ai-loader-message');
                 socket.emit('ask-ai', { question, isPublic });
             }
         } else {
-            socket.emit("user-message", messageContent);
+            socket.emit("user-message", messageContent, () => {
+                const messageEl = document.getElementById(messageId);
+                if (messageEl) {
+                    const statusIndicator = messageEl.querySelector('.message-status');
+                    if (statusIndicator) {
+                        statusIndicator.textContent = 'sent';
+                    }
+                }
+            });
         }
 
         inputField.value = "";
@@ -169,6 +186,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const messageEl = document.createElement("div");
         messageEl.classList.add("message", isSentByMe ? "sent" : "received");
+        if (isSentByMe) {
+            messageEl.id = `msg-${Date.now()}`;
+        }
 
         const messageContentEl = document.createElement("div");
         messageContentEl.classList.add("message-content");
@@ -195,8 +215,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         messageEl.appendChild(messageContentEl);
+
+        if (isSentByMe) {
+            const statusIndicator = document.createElement('span');
+            statusIndicator.classList.add('message-status');
+            statusIndicator.textContent = 'sending';
+            messageEl.appendChild(statusIndicator);
+        }
+
         chatMessages.appendChild(messageEl);
         scrollToBottom();
+
+        return messageEl.id;
     }
 
     function updateUserCount(count) {

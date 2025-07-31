@@ -51,8 +51,11 @@ io.on('connection', (socket) => {
     });
 
 
-    socket.on('user-message', (message) => {
+    socket.on('user-message', (message, callback) => {
         io.emit('backend-user-message', message, socket.id);
+        if (callback) {
+            callback();
+        }
     });
 
     // --- FIXED: AI Question Handler ---
@@ -68,16 +71,19 @@ io.on('connection', (socket) => {
 
         try {
             // Use the SDK's sendMessage method, which handles history correctly
-            const result = await chat.sendMessage(question);
+            const prompt = `Keep your response concise and conversational, like a chat message. User: "${question}"`;
+            const result = await chat.sendMessage(prompt);
             const text = result.response.text();
             
             if (isPublic) {
-                // Broadcast the public question and response to everyone
-                io.emit('public-ai-message', {
+                // Broadcast the public question and response to everyone else
+                socket.broadcast.emit('public-ai-message', {
                     user: socket.id,
                     question: question,
                     answer: text
                 });
+                // Send a private response to the original user
+                socket.emit('ai-response', { answer: text });
             } else {
                 // Send the private response ONLY to the user who asked
                 socket.emit('ai-response', { answer: text });
@@ -88,7 +94,8 @@ io.on('connection', (socket) => {
             const errorMessage = "Sorry, the AI is having trouble thinking right now.";
             // Properly emit errors back to the client
             if (isPublic) {
-                 io.emit('public-ai-message', { user: socket.id, question: question, error: errorMessage });
+                 socket.broadcast.emit('public-ai-message', { user: socket.id, question: question, error: errorMessage });
+                 socket.emit('ai-response', { error: errorMessage });
             } else {
                 socket.emit('ai-response', { error: errorMessage });
             }

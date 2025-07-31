@@ -251,6 +251,14 @@ body::before {
     border-bottom-right-radius: 5px; /* Tail effect */
 }
 
+
+.message-status {
+    font-size: 0.7em;
+    color: #aaa;
+    margin-left: 10px;
+    align-self: flex-end;
+}
+
 .message.received .message-content {
     background-color: var(--received-message-bg);
     color: var(--text-color);

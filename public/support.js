@@ -61,9 +61,9 @@ let gifSearchTimeout;
 if (emojiButton && emojiPickerElement && chatInputElement) {
     emojiButton.addEventListener("click", (event) => {
         event.stopPropagation();
-        const isVisible = emojiPickerElement.style.display === "block";
-        gifPickerElement.style.display = 'none'; // Always close the other picker
-        emojiPickerElement.style.display = isVisible ? "none" : "block";
+        const isVisible = emojiPickerElement.classList.contains("visible");
+        gifPickerElement.classList.remove('visible'); // Always close the other picker
+        emojiPickerElement.classList.toggle("visible");
 
         if (!isVisible && !emojiPicker) {
             // Initialize picker only once when it's first opened
@@ -80,7 +80,7 @@ if (emojiButton && emojiPickerElement && chatInputElement) {
                     chatInputElement.value = chatInputElement.value.substring(0, start) + emoji.native + chatInputElement.value.substring(end);
                     chatInputElement.selectionStart = chatInputElement.selectionEnd = start + emoji.native.length;
                     chatInputElement.focus();
-                    emojiPickerElement.style.display = "none";
+                    emojiPickerElement.classList.remove("visible");
                 }
             });
         }
@@ -113,7 +113,7 @@ async function fetchAndDisplayGifs(query = "") {
                     document.dispatchEvent(new CustomEvent('send-gif', {
                         detail: { url: gif.images.fixed_height.url }
                     }));
-                    gifPickerElement.style.display = "none";
+                    gifPickerElement.classList.remove("visible");
                 });
                 gifResultsContainer.appendChild(img);
             });
@@ -129,9 +129,9 @@ async function fetchAndDisplayGifs(query = "") {
 if (gifButton && gifPickerElement && gifSearchInput && chatInputElement) {
     gifButton.addEventListener("click", (event) => {
         event.stopPropagation();
-        const isVisible = gifPickerElement.style.display === "block";
-        emojiPickerElement.style.display = 'none'; // Always close the other picker
-        gifPickerElement.style.display = isVisible ? "none" : "block";
+        const isVisible = gifPickerElement.classList.contains("visible");
+        emojiPickerElement.classList.remove('visible'); // Always close the other picker
+        gifPickerElement.classList.toggle("visible");
 
         if (!isVisible && !gifSearchInput.value) {
             fetchAndDisplayGifs();
@@ -152,9 +152,9 @@ if (gifButton && gifPickerElement && gifSearchInput && chatInputElement) {
 // --- Global Click Listener to Close Pickers (Preserved) ---
 document.addEventListener("click", (event) => {
     if (emojiPickerElement && !emojiPickerElement.contains(event.target) && event.target !== emojiButton) {
-        emojiPickerElement.style.display = "none";
+        emojiPickerElement.classList.remove("visible");
     }
     if (gifPickerElement && !gifPickerElement.contains(event.target) && event.target !== gifButton) {
-        gifPickerElement.style.display = "none";
+        gifPickerElement.classList.remove("visible");
     }
 });

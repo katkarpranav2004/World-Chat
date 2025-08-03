@@ -26,7 +26,7 @@ body,
 html {
     margin: 0;
     padding: 0;
-    font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+    font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif;
     background-color: #000000;
     /* Background pattern */
     background-image:
@@ -273,6 +273,84 @@ body::before {
      margin-top: 8px; /* Space if text precedes */
      border-radius: 8px;
 }
+
+/* --- NEW: Styles for AI-Generated Content (Markdown) --- */
+.message-content > *:first-child {
+    margin-top: 0;
+}
+.message-content > *:last-child {
+    margin-bottom: 0;
+}
+
+.message-content p {
+    margin: 0.5em 0; /* Spacing between paragraphs */
+}
+
+.message-content a {
+    color: var(--tertiary-color);
+    text-decoration: underline;
+}
+.message.sent .message-content a {
+    color: var(--bg-color); /* Maintain contrast on sent messages */
+    font-weight: bold;
+}
+
+.message-content ul,
+.message-content ol {
+    padding-left: 25px; /* Indent lists */
+    margin: 0.75em 0;
+}
+
+.message-content li {
+    margin-bottom: 0.4em; /* Space out list items */
+}
+
+.message-content blockquote {
+    margin: 1em 0;
+    padding: 8px 15px;
+    border-left: 4px solid var(--tertiary-color);
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    font-style: italic;
+}
+
+.message-content code:not(pre > code) {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9em;
+}
+.message.sent .message-content code:not(pre > code) {
+    background-color: rgba(255, 255, 255, 0.2); /* Lighter on dark background */
+}
+
+
+.message-content pre {
+    margin: 1em 0;
+    padding: 12px;
+    background-color: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    overflow-x: auto; /* Allow horizontal scrolling for wide code blocks */
+    white-space: pre; /* Use pre for less aggressive wrapping */
+    scrollbar-color: var(--tertiary-color) transparent;
+    scrollbar-width: thin;
+}
+.message-content pre::-webkit-scrollbar { height: 6px; }
+.message-content pre::-webkit-scrollbar-track { background: transparent; }
+.message-content pre::-webkit-scrollbar-thumb {
+    background-color: var(--tertiary-color);
+    border-radius: 3px;
+}
+
+
+.message-content pre code {
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9em;
+    background: none;
+    padding: 0;
+}
+
 
 /* --- Chat Input Area --- */
 .chat-input {

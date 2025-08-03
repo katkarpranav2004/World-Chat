@@ -68,9 +68,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const senderId = data.user === socket.id ? 'You' : `User ${data.user.substring(0, 4)}`;
             let content;
             if (data.error) {
-                content = `**[Public]** ${senderId} asked Gemini, but there was an error: ${data.error}`;
+                content = `**(Public)** ${senderId} asked Gemini, but there was an error: ${data.error}`;
             } else {
-                content = `**[Public] ${senderId} asked:**\n*${data.question}*\n\n**🤖 Gemini Replied:**\n${data.answer}`;
+                content = `**(Public)** ${senderId} asked:\n\n ${data.question}\n\n**🤖 Gemini Replied:**\n\n${data.answer}`;
+
             }
             loaderMessage.innerHTML = DOMPurify.sanitize(marked.parse(content), { USE_PROFILES: { html: true } });
             loaderMessage.removeAttribute('id');
@@ -79,9 +80,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const senderId = data.user === socket.id ? 'You' : `User ${data.user.substring(0, 4)}`;
             let content;
             if (data.error) {
-                content = `**[Public]** ${senderId} asked Gemini, but there was an error: ${data.error}`;
+                content = `**(Public)** ${senderId} asked Gemini, but there was an error: ${data.error}`;
             } else {
-                content = `**[Public] ${senderId} asked:**\n*${data.question}*\n\n**🤖 Gemini Replied:**\n${data.answer}`;
+                content = `**(Public)** ${senderId} asked:\n ${data.question}\n\n**🤖 Gemini Replied:**\n\n${data.answer}`;
             }
             addMessage(content, false);
         }

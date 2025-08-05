@@ -19,7 +19,6 @@ if (!process.env.GIPHY_API_KEY) {
 }
 
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -34,8 +33,12 @@ app.use(express.static(path.resolve('./public')));
 
 // --- In-Memory Data Stores ---
 let onlineUsers = new Set();
-// Use a Map to store chat session instances for each user
-const userChatSessions = new Map();
+// Use a Map to store private chat session instances for each user
+const userPrivateChatSessions = new Map();
+// Create a single, shared public chat session for all users
+const publicChatModel = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
+const publicChat = publicChatModel.startChat({ history: [] });
+
 
 // --- Socket.IO Connection Handling ---
 io.on('connection', (socket) => {
@@ -43,12 +46,9 @@ io.on('connection', (socket) => {
     onlineUsers.add(socket.id);
     io.emit('total-user', onlineUsers.size);
 
-    // For each user, create and store a new chat session instance.
-    // This includes a separate history for both private and public chats.
-    userChatSessions.set(socket.id, {
-        privateChat: model.startChat({ history: [] }),
-        publicChat: model.startChat({ history: [] }) // Each user also has a context of the public chat
-    });
+    // For each user, create and store a new PRIVATE chat session instance.
+    const privateChatModel = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
+    userPrivateChatSessions.set(socket.id, privateChatModel.startChat({ history: [] }));
 
 
     socket.on('user-message', (message, callback) => {
@@ -60,14 +60,26 @@ io.on('connection', (socket) => {
 
     // --- FIXED: AI Question Handler ---
     socket.on('ask-ai', async ({ question, isPublic }) => {
-        const userSession = userChatSessions.get(socket.id);
-        if (!userSession) {
-            console.error(`Could not find session for user ${socket.id}`);
-            return socket.emit('ai-response', { error: "Could not find your session. Please reconnect." });
-        }
+        let chat;
+        if (isPublic) {
+            // Use the shared public chat session
+            chat = publicChat;
+        } else {
+            // For private questions, give the AI context of the public chat
+            const privateChatSession = userPrivateChatSessions.get(socket.id);
+            if (!privateChatSession) {
+                console.error(`Could not find session for user ${socket.id}`);
+                return socket.emit('ai-response', { error: "Could not find your session. Please reconnect." });
+            }
+            // Get history from the main public chat and the user's private chat
+            const publicHistory = await publicChat.getHistory();
+            const privateHistory = await privateChatSession.getHistory();
 
-        // Select the appropriate chat session (public or private)
-        const chat = isPublic ? userSession.publicChat : userSession.privateChat;
+            // Combine histories to provide full context, then create a temporary session
+            const combinedHistory = [...publicHistory, ...privateHistory];
+            const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
+            chat = model.startChat({ history: combinedHistory });
+        }
 
         try {
             // Use the SDK's sendMessage method, which handles history correctly
@@ -87,6 +99,12 @@ io.on('connection', (socket) => {
             } else {
                 // Send the private response ONLY to the user who asked
                 socket.emit('ai-response', { answer: text });
+                // Manually update the user's persistent private history
+                const privateChatSession = userPrivateChatSessions.get(socket.id);
+                const updatedHistory = await chat.getHistory();
+                // We only need the last two items (the user's prompt and the model's response)
+                const newMessages = updatedHistory.slice(-2); 
+                privateChatSession.history.push(...newMessages);
             }
 
         } catch (error) {
@@ -105,8 +123,8 @@ io.on('connection', (socket) => {
     socket.on('disconnect', () => {
         console.log(`User disconnected: ${socket.id}`);
         onlineUsers.delete(socket.id);
-        // Clean up the user's chat session from memory
-        userChatSessions.delete(socket.id);
+        // Clean up the user's private chat session from memory
+        userPrivateChatSessions.delete(socket.id);
         io.emit('total-user', onlineUsers.size);
     });
 });
@@ -140,5 +158,5 @@ app.get('/api/gifs', async (req, res) => {
 
 // --- Server Initialization ---
 server.listen(PORT, () => {
-    console.log(`\nServer is live on port: ${PORT}`);
+    console.log(`\nServer is live on port: http://localhost:${PORT}`);
 });

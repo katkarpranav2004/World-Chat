@@ -52,21 +52,20 @@ const emojiPickerElement = document.getElementById("emoji-picker");
 const gifPickerElement = document.getElementById("gif-picker");
 const gifSearchInput = document.getElementById("gif-search");
 const gifResultsContainer = document.getElementById("gif-results");
-const chatInputElement = document.querySelector(".chat-input .input");
 
-let emojiPicker; // Variable to hold the picker instance
+let emojiPicker;
 let gifSearchTimeout;
 
-// --- Emoji Picker Logic (Restored to original functionality) ---
-if (emojiButton && emojiPickerElement && chatInputElement) {
+// --- Emoji Picker Logic ---
+if (emojiButton && emojiPickerElement) {
     emojiButton.addEventListener("click", (event) => {
         event.stopPropagation();
-        const isVisible = emojiPickerElement.classList.contains("visible");
-        gifPickerElement.classList.remove('visible'); // Always close the other picker
-        emojiPickerElement.classList.toggle("visible");
+        // Hide the other picker and toggle the current one
+        gifPickerElement.classList.remove('visible');
+        emojiPickerElement.classList.toggle('visible');
 
-        if (!isVisible && !emojiPicker) {
-            // Initialize picker only once when it's first opened
+        // Initialize picker only once when it's first opened
+        if (emojiPickerElement.classList.contains('visible') && !emojiPicker) {
             emojiPicker = new EmojiMart.Picker({
                 data: async () => {
                     const response = await fetch('https://cdn.jsdelivr.net/npm/@emoji-mart/data');
@@ -75,26 +74,21 @@ if (emojiButton && emojiPickerElement && chatInputElement) {
                 parent: emojiPickerElement,
                 theme: 'dark',
                 onEmojiSelect: (emoji) => {
-                    const start = chatInputElement.selectionStart;
-                    const end = chatInputElement.selectionEnd;
-                    chatInputElement.value = chatInputElement.value.substring(0, start) + emoji.native + chatInputElement.value.substring(end);
-                    chatInputElement.selectionStart = chatInputElement.selectionEnd = start + emoji.native.length;
-                    chatInputElement.focus();
-                    emojiPickerElement.classList.remove("visible");
+                    if (window.sendContent) {
+                        window.sendContent({ type: 'emoji', content: emoji.native });
+                    }
+                    emojiPickerElement.classList.remove('visible'); // Hide after selection
                 }
             });
         }
     });
-} else {
-    console.error("Emoji button, picker element, or chat input not found.");
 }
 
-// --- GIF Picker Logic (Restored with security enhancement) ---
+// --- GIF Picker Logic ---
 async function fetchAndDisplayGifs(query = "") {
     if (!gifResultsContainer) return;
     gifResultsContainer.innerHTML = '<p>Loading GIFs...</p>';
     try {
-        // ENHANCEMENT: Call the secure server proxy
         const response = await fetch(`/api/gifs?query=${encodeURIComponent(query)}`);
         if (!response.ok) {
             const errorData = await response.json();
@@ -108,12 +102,17 @@ async function fetchAndDisplayGifs(query = "") {
                 const img = document.createElement("img");
                 img.src = gif.images.fixed_height_small.url;
                 img.alt = gif.title || "GIF";
+                img.classList.add('gif-item'); // Add class for styling
                 img.addEventListener("click", () => {
-                    // ENHANCEMENT: Dispatch a custom event for client.js to handle
-                    document.dispatchEvent(new CustomEvent('send-gif', {
-                        detail: { url: gif.images.fixed_height.url }
-                    }));
-                    gifPickerElement.classList.remove("visible");
+                    // Use the globally available function from client.js
+                    if (window.sendContent) {
+                        window.sendContent({
+                            type: 'gif',
+                            content: gif.images.original.url,
+                            alt: gif.title
+                        });
+                    }
+                    gifPickerElement.style.display = 'none'; // Hide picker
                 });
                 gifResultsContainer.appendChild(img);
             });
@@ -126,35 +125,42 @@ async function fetchAndDisplayGifs(query = "") {
     }
 }
 
-if (gifButton && gifPickerElement && gifSearchInput && chatInputElement) {
+if (gifButton && gifPickerElement && gifSearchInput) {
     gifButton.addEventListener("click", (event) => {
         event.stopPropagation();
-        const isVisible = gifPickerElement.classList.contains("visible");
-        emojiPickerElement.classList.remove('visible'); // Always close the other picker
-        gifPickerElement.classList.toggle("visible");
+        // Hide the other picker and toggle the current one
+        emojiPickerElement.classList.remove('visible');
+        gifPickerElement.classList.toggle('visible');
 
-        if (!isVisible && !gifSearchInput.value) {
-            fetchAndDisplayGifs();
+        const isVisible = gifPickerElement.classList.contains('visible');
+        if (isVisible && !gifSearchInput.value) {
+            fetchAndDisplayGifs(); // Fetch trending on first open
         }
-        gifSearchInput.focus();
+        if (isVisible) {
+            gifSearchInput.focus();
+        }
     });
 
     gifSearchInput.addEventListener("input", () => {
         clearTimeout(gifSearchTimeout);
         gifSearchTimeout = setTimeout(() => {
             fetchAndDisplayGifs(gifSearchInput.value.trim());
-        }, 500);
+        }, 500); // Debounce search
     });
-} else {
-    console.error("GIF button, picker element, search input, results container, or chat input not found.");
 }
 
-// --- Global Click Listener to Close Pickers (Preserved) ---
+// --- Global Click Listener to Close Pickers ---
 document.addEventListener("click", (event) => {
     if (emojiPickerElement && !emojiPickerElement.contains(event.target) && event.target !== emojiButton) {
-        emojiPickerElement.classList.remove("visible");
+        emojiPickerElement.classList.remove('visible');
     }
     if (gifPickerElement && !gifPickerElement.contains(event.target) && event.target !== gifButton) {
-        gifPickerElement.classList.remove("visible");
+        gifPickerElement.classList.remove('visible');
     }
+});
+
+// --- Listen for close all pickers event (from keyboard shortcuts) ---
+document.addEventListener('close-all-pickers', () => {
+    if (emojiPickerElement) emojiPickerElement.classList.remove('visible');
+    if (gifPickerElement) gifPickerElement.classList.remove('visible');
 });

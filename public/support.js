@@ -52,6 +52,7 @@ const emojiPickerElement = document.getElementById("emoji-picker");
 const gifPickerElement = document.getElementById("gif-picker");
 const gifSearchInput = document.getElementById("gif-search");
 const gifResultsContainer = document.getElementById("gif-results");
+const messageInputField = document.getElementById("message-input"); // Get the main message input
 
 let emojiPicker;
 let gifSearchTimeout;
@@ -64,8 +65,10 @@ if (emojiButton && emojiPickerElement) {
         gifPickerElement.classList.remove('visible');
         emojiPickerElement.classList.toggle('visible');
 
+        const isVisible = emojiPickerElement.classList.contains('visible');
+
         // Initialize picker only once when it's first opened
-        if (emojiPickerElement.classList.contains('visible') && !emojiPicker) {
+        if (isVisible && !emojiPicker) {
             emojiPicker = new EmojiMart.Picker({
                 data: async () => {
                     const response = await fetch('https://cdn.jsdelivr.net/npm/@emoji-mart/data');
@@ -74,12 +77,26 @@ if (emojiButton && emojiPickerElement) {
                 parent: emojiPickerElement,
                 theme: 'dark',
                 onEmojiSelect: (emoji) => {
-                    if (window.sendContent) {
-                        window.sendContent({ type: 'emoji', content: emoji.native });
+                    // Append the selected emoji to the main input field
+                    if (messageInputField) {
+                        messageInputField.value += emoji.native;
+                        // Trigger an input event so other parts of the app can react if needed
+                        messageInputField.dispatchEvent(new Event('input', { bubbles: true }));
                     }
-                    emojiPickerElement.classList.remove('visible'); // Hide after selection
+                    // DO NOT hide the picker after selection.
                 }
             });
+        }
+
+        // If the picker is now visible, focus its search input
+        if (isVisible) {
+            // Use a small timeout to wait for the web component to render its shadow DOM
+            setTimeout(() => {
+                const searchInput = emojiPickerElement.querySelector('em-emoji-picker')?.shadowRoot.querySelector('input[type="search"]');
+                if (searchInput) {
+                    searchInput.focus();
+                }
+            }, 100);
         }
     });
 }

@@ -2,15 +2,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Constants ---
     const AI_ACTION_PREFIX = '@ai';
     const IS_MOBILE = /Mobi|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
+    const IS_MAC = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    const MOD_KEY = IS_MAC ? 'meta' : 'ctrl'; // 'meta' is the Command key on Mac
     
     // Keyboard shortcuts configuration
     const SHORTCUTS = {
-        AI_TOGGLE: 'ctrl+/',
-        EMOJI_PICKER: 'ctrl+e',
-        GIF_PICKER: 'ctrl+g',
-        SEND_MESSAGE: 'ctrl+enter',
-        FOCUS_INPUT: 'ctrl+i',
-        HELP: 'ctrl+h',
+        AI_TOGGLE: `${MOD_KEY}+/`,
+        EMOJI_PICKER: `${MOD_KEY}+e`,
+        GIF_PICKER: `${MOD_KEY}+g`,
+        SEND_MESSAGE: `${MOD_KEY}+enter`,
+        FOCUS_INPUT: `${MOD_KEY}+i`,
+        HELP: `${MOD_KEY}+h`,
         AI_TRIGGER: 'alt+a' // New shortcut to trigger AI mode
     };
 
@@ -29,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const helpButtonMobile = document.getElementById("help-button-mobile");
     const terminal = document.querySelector('.terminal'); // Get terminal element
     const debugOverlay = document.getElementById('debug-overlay'); // Get debug element
+    const MOD_SYMBOL = IS_MAC ? '⌘' : 'Ctrl'; // Define MOD_SYMBOL here for wider use
 
     // --- Mobile Viewport & Keyboard Handling ---
     function handleMobileViewport() {
@@ -53,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function createHelpOverlay() {
         const overlay = document.createElement('div');
         overlay.id = 'shortcut-help-overlay';
+        const MOD_SYMBOL = IS_MAC ? '⌘' : 'Ctrl';
         
         const mobileHelpContent = `
             <div class="help-header">
@@ -77,12 +81,12 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="help-grid">
                 <div class="shortcut-item"><span class="shortcut-key">Alt + A</span><span class="shortcut-desc">Toggle AI mode</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">Ctrl + /</span><span class="shortcut-desc">Toggle Public/Private AI mode</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">Ctrl + E</span><span class="shortcut-desc">Open emoji picker</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">Ctrl + G</span><span class="shortcut-desc">Open GIF picker</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">Ctrl + Enter</span><span class="shortcut-desc">Send message</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">Ctrl + I</span><span class="shortcut-desc">Focus message input</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">Ctrl + H</span><span class="shortcut-desc">Show/hide this help</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + /</span><span class="shortcut-desc">Toggle Public/Private AI mode</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + E</span><span class="shortcut-desc">Open emoji picker</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + G</span><span class="shortcut-desc">Open GIF picker</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + Enter</span><span class="shortcut-desc">Send message</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + I</span><span class="shortcut-desc">Focus message input</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + H</span><span class="shortcut-desc">Show/hide this help</span></div>
                 <div class="shortcut-item"><span class="shortcut-key">Enter</span><span class="shortcut-desc">Send message (when input focused)</span></div>
                 <div class="shortcut-item"><span class="shortcut-key">Esc</span><span class="shortcut-desc">Close pickers/dialogs</span></div>
             </div>
@@ -124,12 +128,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Parse shortcut string (e.g., "ctrl+e" -> {ctrl: true, key: "e"})
     function parseShortcut(shortcut) {
         const parts = shortcut.toLowerCase().split('+');
-        const result = { ctrl: false, alt: false, shift: false, key: '' };
+        const result = { ctrl: false, alt: false, shift: false, meta: false, key: '' };
         
         parts.forEach(part => {
             if (part === 'ctrl') result.ctrl = true;
             else if (part === 'alt') result.alt = true;
             else if (part === 'shift') result.shift = true;
+            else if (part === 'meta') result.meta = true; // Add meta key support
             else result.key = part;
         });
         
@@ -142,6 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return event.ctrlKey === parsed.ctrl &&
                event.altKey === parsed.alt &&
                event.shiftKey === parsed.shift &&
+               event.metaKey === parsed.meta && // Check meta key for Mac
                event.key.toLowerCase() === parsed.key;
     }
 
@@ -149,6 +155,17 @@ document.addEventListener('DOMContentLoaded', () => {
     document.addEventListener('keydown', (e) => {
         // Don't run keyboard shortcuts on mobile devices
         if (IS_MOBILE) return;
+
+        // If the event target is an input/textarea, only allow shortcuts that use a modifier key (Ctrl, Alt, Meta).
+        // This prevents single-key shortcuts from firing when the user is just trying to type.
+        const target = e.target;
+        const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+        if (isInput && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            // Allow specific non-modifier keys like 'Escape' and 'Enter' to pass through.
+            if (e.key !== 'Escape' && e.key !== 'Enter') {
+                return;
+            }
+        }
 
         // Handle Escape key
         if (e.key === 'Escape') {
@@ -191,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Manually dispatch an 'input' event to show/hide the AI toggle
             inputField.dispatchEvent(new Event('input', { bubbles: true }));
         }
-        else if (matchesShortcut(e, SHORTCUTT.EMOJI_PICKER)) {
+        else if (matchesShortcut(e, SHORTCUTS.EMOJI_PICKER)) { // FIX: Corrected typo from SHORTCUTT to SHORTCUTS
             e.preventDefault();
             document.getElementById('emoji-button')?.click();
             showTooltip('Emoji picker opened');
@@ -213,7 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
             inputField.focus();
             showTooltip('Input focused');
         }
-    });
+    }, true); // <-- ADD 'true' HERE to switch to the capture phase.
 
     // Tooltip system for shortcut feedback
     function showTooltip(message, duration = 2000) {
@@ -244,11 +261,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const hints = [];
         
         if (inputField.value.trim().startsWith(AI_ACTION_PREFIX)) {
-            hints.push('Ctrl+/ to toggle AI mode');
+            hints.push(`${MOD_SYMBOL}+/ to toggle AI mode`);
         }
         
         if (hints.length === 0) {
-            hints.push(IS_MOBILE ? 'Tap the ? for help' : 'Ctrl+H for shortcuts');
+            hints.push(IS_MOBILE ? 'Tap the ? for help' : `${MOD_SYMBOL}+H for shortcuts`);
         }
 
         // Update connection status with hints when idle
@@ -505,6 +522,9 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.addEventListener('click', focusOnFirstTap);
             document.body.addEventListener('touchend', focusOnFirstTap);
         } else {
+            // Set desktop placeholder dynamically
+            inputField.placeholder = `Type your message... (${MOD_SYMBOL}+H for shortcuts)`;
+
             // Reinforce focus after full load & after a short delay (handles late scripts stealing focus)
             if (document.activeElement !== inputField) inputField.focus();
             setTimeout(() => {
@@ -513,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         setTimeout(() => {
-            const hintMessage = IS_MOBILE ? 'Tap the ? button for help' : 'Press Ctrl+H for keyboard shortcuts';
+            const hintMessage = IS_MOBILE ? 'Tap the ? button for help' : `Press ${MOD_SYMBOL}+H for keyboard shortcuts`;
             showTooltip(hintMessage, 4000);
         }, 3000);
     });

@@ -17,7 +17,7 @@
     "socket.io": "^4.7.5"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "nodemon": "^3.1.10"
   },
   "keywords": [],
   "description": "A real-time terminal-themed web chat application with AI integration."

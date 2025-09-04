@@ -26,6 +26,9 @@ html {
     margin: 0;
     padding: 0;
     font-family: 'Inter', 'Segoe UI', 'Arial', sans-serif;
+    height: 100%; /* Ensure a stable full-height container */
+    width: 100%;
+    overflow: hidden; /* Prevent scrolling of the body itself */
     background-color: #000000;
     /* Background pattern */
     background-image:
@@ -37,7 +40,7 @@ html {
     background-position: 0 0, 40px 60px, 130px 270px, 70px 100px;
     animation: backgroundShift 60s linear infinite;
     color: #FFFFFF; /* Default text color */
-    height: 100vh;
+    /* REMOVED redundant height: 100vh; */
     overflow: hidden; /* Prevent body scroll */
     font-size: 16px;
     cursor: none; /* Use custom cursor */
@@ -141,7 +144,32 @@ body::before {
     color: var(--tertiary-color); /* Highlight on hover */
 }
 .disconnect-button:active span {
-    transform: scale(0.9); /* Click effect */
+    transform: scale(0.9);
+}
+
+/* NEW: Mobile-only Help Button */
+.help-button-mobile {
+    display: none; /* Hidden by default on desktop */
+    position: absolute;
+    right: 50px; /* Position it next to the disconnect button */
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-family: 'VT323', monospace;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: rgba(255, 255, 255, 0.2);
+}
+
+.help-button-mobile:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: var(--tertiary-color);
 }
 
 /* Tooltip for disconnect button - consider a JS solution for better accessibility */
@@ -368,6 +396,13 @@ body::before {
     /* REMOVE position: relative; from here */
 }
 
+/* NEW: Style the buttons wrapper for desktop view */
+.buttons-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px; /* Adjust gap as needed for desktop */
+}
+
 .chat-input .input {
     flex-grow: 1;
     background-color: var(--input-bg);
@@ -403,7 +438,7 @@ body::before {
     width: 40px; /* Fixed size */
     height: 40px; /* Fixed size */
     margin: 0 3px; /* Spacing */
-    position: relative; /* Needed for offsetLeft calculation */
+    /* REMOVED position: relative; from here as it's not needed on all buttons */
 }
 .chat-input button:hover {
     color: var(--tertiary-color); /* Highlight on hover */
@@ -426,6 +461,17 @@ body::before {
 #send-button:hover {
     background-color: var(--quaternary-color);
     color: var(--text-color);
+}
+
+/* NEW: Style for the SVG inside the send button */
+#send-button svg {
+    width: 20px; /* Default size for desktop */
+    height: 20px;
+    transition: transform 0.2s ease;
+}
+
+#send-button:hover svg {
+    transform: scale(1.1) translateX(1px); /* Subtle hover effect */
 }
 
 /* --- Picker Base Styles --- */
@@ -839,90 +885,126 @@ body::before {
     font-style: italic;
 }
 
-/* Mobile adjustments */
-@media (max-width: 600px) {
-    .help-content {
-        padding: 16px;
-        margin: 20px;
+/* --- Mobile & Touch Enhancements --- */
+
+/* Add a tap highlight for better touch feedback on mobile */
+.chat-input button, .disconnect-button {
+    -webkit-tap-highlight-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Media Query for tablets and larger phones */
+@media (max-width: 768px) {
+    /* RESTORED: Mobile-specific full-screen styles */
+
+    @keyframes TurnOn { /* Initial terminal appearance */
+    from { opacity: 0; transform: scale(1.1); }
+    to { opacity: 1; transform: scale(1); }
     }
-    
-    .help-header h3 {
+    /* Fullscreen terminal on mobile */
+    .terminal {
+        width: 100%;
+        height: var(--app-height, 100vh); /* Use JS-provided height */
+        margin: 0;
+        background-color: var(--primary-color);
+        box-shadow: 0 0 25px rgba(0, 0, 0, 0.5);
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+    }
+
+    /* Show mobile help button */
+    .help-button-mobile {
+        display: block;
+    }
+
+    .chat-messages {
+        padding: 12px;
+    }
+
+    .message {
+        max-width: 90%;
+    }
+
+    .chat-input {
+        padding: 8px;
+        gap: 8px; /* Add gap for spacing */
+        flex-wrap: nowrap; /* Ensure items stay on one line */
+    }
+
+    .chat-input .input {
+        padding: 10px 14px;
+        margin: 0; /* Remove margin, use gap instead */
+        flex-grow: 1; /* Allow input to take available space */
+        min-width: 50px; /* Prevent input from becoming too small */
+    }
+
+    .chat-input button {
+        width: 44px; /* Slightly larger touch target */
+        height: 44px;
+        font-size: 1.5em;
+        margin: 0;
+        flex-shrink: 0; /* Prevent buttons from shrinking */
+    }
+
+    /* Make send button an icon button on mobile */
+    #send-button {
+        width: 44px; /* Match other buttons */
+        height: 44px;
+        padding: 0; /* Remove padding to center the icon */
+        font-size: 1em; /* Reset font-size */
+    }
+
+    #send-button svg {
+        width: 24px; /* Larger icon for mobile */
+        height: 24px;
+    }
+
+    /* Group left-side buttons together */
+    .buttons-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 4px; /* Space out buttons inside the wrapper */
+    }
+}
+
+
+/* Media Query for smaller phones */
+@media (max-width: 480px) {
+    /* This media query now correctly overrides the 768px styles */
+    .terminal {
+        width: 100%;
+        /* On smaller screens, we might want a margin. Let's calculate height based on that. */
+        height: var(--app-height, 100vh);
+        /* REMOVE vertical margin and only apply horizontal margin for centering */
+        margin: 0 auto;
+    }
+
+    .status-bar {
+        font-size: 10px;
+        padding: 5px 10px;
+    }
+
+    .terminal-header {
         font-size: 1.1em;
     }
-    
-    .shortcut-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 6px;
-    }
-    
-    .shortcut-desc {
-        text-align: left;
-        margin-left: 0;
-    }
-    
-    .shortcut-key {
-        font-size: 0.8em;
-    }
-}
 
-@media (max-width: 600px) {
-    .terminal {
-        width: 98%; /* Almost full width */
-        height: 95vh; /* Taller on mobile */
-        margin: 1vh auto;
-    }
-    .terminal-header { font-size: 1.1em; }
-    .status-bar { font-size: 9px; padding: 5px 10px; }
-    .chat-messages { padding: 10px; }
-    .message { max-width: 90%; }
-    .message-content { padding: 8px 12px; border-radius: 15px; }
-
-    .chat-input { padding: 8px 10px; }
-    .chat-input input[type="text"] { padding: 8px 12px; font-size: 0.95em; }
-    .chat-input button { font-size: 1.4em; width: 36px; height: 36px; }
-    #send-button { font-size: 0.85em; padding: 7px 15px; }
-
-    /* Adjust picker positions and sizes for mobile */
+    /* Make pickers take up more screen width on mobile */
     .picker-container {
-        max-width: calc(100% - 10px); /* Limit width slightly less than full */
-        max-height: 45vh; /* Adjust max height */
-        left: 5px !important; /* Force left alignment */
-        right: 5px;
-        width: auto; /* Let max-width control */
+        width: calc(100% - 10px); /* Use available width with small margin */
+        max-width: none; /* Override desktop max-width */
+        left: 5px !important; /* Position consistently */
+        right: auto;
+        max-height: 40vh; /* Limit height */
     }
-    #emoji-picker { height: 38vh; } /* Keep height for emoji picker */
-    #gif-picker { height: 38vh; } /* Set height for mobile */
 
-    #gif-results img {
-        /* This rule is no longer needed with CSS Grid */
+    #emoji-picker, #gif-picker {
+        height: 40vh; /* Consistent height for both pickers */
     }
 }
+
 
 @media (max-width: 400px) {
-    .chat-input {
-         flex-wrap: wrap;
-         padding: 8px;
-    }
-    .chat-input input[type="text"] {
-        order: 1; /* Place input first */
-        flex-basis: 100%;
-        margin: 0 0 8px 0;
-    }
-    /* Wrap buttons in a div for better control */
-    .chat-input .buttons-wrapper {
-         order: 2; /* Place buttons below */
-         display: flex;
-         width: 100%;
-         justify-content: space-between; /* Distribute space */
-    }
-    .chat-input .buttons-wrapper #send-button {
-         margin-left: auto; /* Push send button to the right */
-    }
-     /* Add this div in your index.html around the buttons if using this */
-     /* <div class="buttons-wrapper"> <button id="emoji-button">...</button> ... </div> */
-
-
+    /* This rule is now correctly applied for very small devices */
      .terminal-header { font-size: 1em; }
      .status-bar { font-size: 8px; }
 }

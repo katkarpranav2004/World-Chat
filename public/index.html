@@ -28,11 +28,16 @@
     <link rel="stylesheet" href="./toggle-switch.css" />
   </head>
   <body>
+    <!-- NEW: Debug overlay for mobile view -->
+    <!-- <div id="debug-overlay"></div> -->
+
     <div class="custom-cursor"><div class="cursor-dot"></div></div>
 
     <div class="terminal">
       <div class="terminal-header">
         Chat Terminal
+        <!-- NEW: Help button for mobile -->
+        <button class="help-button-mobile" id="help-button-mobile" aria-label="Show Help">?</button>
         <button class="disconnect-button" id="disconnect-button" aria-label="Disconnect/Connect">
             <span>⌀</span>
         </button>
@@ -61,8 +66,52 @@
 
         <!-- The chat input bar is now a sibling to the pickers -->
         <div class="chat-input">
-          <button id="emoji-button" aria-label="Open emoji picker" data-shortcut="Ctrl+E">😊</button>
-          <button id="gif-button" aria-label="Open GIF picker" data-shortcut="Ctrl+G">GIF</button>
+          <!-- Wrap buttons and toggle in a new div for better flexbox control on mobile -->
+          <div class="buttons-wrapper">
+            <button id="emoji-button" aria-label="Open emoji picker" data-shortcut="Ctrl+E">😊</button>
+            <button id="gif-button" aria-label="Open GIF picker" data-shortcut="Ctrl+G">GIF</button>
+
+            <!-- AI Toggle Switch -->
+            <div class="ai-toggle-container">
+                <div class="neo-toggle-container">
+                  <input class="neo-toggle-input" id="ai-public-toggle" type="checkbox" title="Toggle Advanced AI" />
+                  <label class="neo-toggle" for="ai-public-toggle">
+                    <div class="neo-track">
+                      <div class="neo-background-layer"></div>
+                      <div class="neo-grid-layer"></div>
+                      <div class="neo-spectrum-analyzer">
+                        <div class="neo-spectrum-bar"></div>
+                        <div class="neo-spectrum-bar"></div>
+                        <div class="neo-spectrum-bar"></div>
+                        <div class="neo-spectrum-bar"></div>
+                        <div class="neo-spectrum-bar"></div>
+                      </div>
+                      <div class="neo-track-highlight"></div>
+                    </div>
+                    <div class="neo-thumb">
+                      <div class="neo-thumb-ring"></div>
+                      <div class="neo-thumb-core">
+                        <div class="neo-thumb-icon">
+                          <div class="neo-thumb-wave"></div>
+                          <div class="neo-thumb-pulse"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="neo-gesture-area"></div>
+                    <div class="neo-interaction-feedback">
+                      <div class="neo-ripple"></div>
+                      <div class="neo-progress-arc"></div>
+                    </div>
+                    <div class="neo-status">
+                      <div class="neo-status-indicator">
+                        <div class="neo-status-dot"></div>
+                        <div class="neo-status-text"></div>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+            </div>
+          </div>
 
           <input
             type="text"
@@ -72,48 +121,11 @@
             aria-label="Chat input"
           />
 
-          <!-- AI Toggle Switch -->
-          <div class="ai-toggle-container">
-              <div class="neo-toggle-container">
-                <input class="neo-toggle-input" id="ai-public-toggle" type="checkbox" title="Toggle Advanced AI" />
-                <label class="neo-toggle" for="ai-public-toggle">
-                  <div class="neo-track">
-                    <div class="neo-background-layer"></div>
-                    <div class="neo-grid-layer"></div>
-                    <div class="neo-spectrum-analyzer">
-                      <div class="neo-spectrum-bar"></div>
-                      <div class="neo-spectrum-bar"></div>
-                      <div class="neo-spectrum-bar"></div>
-                      <div class="neo-spectrum-bar"></div>
-                      <div class="neo-spectrum-bar"></div>
-                    </div>
-                    <div class="neo-track-highlight"></div>
-                  </div>
-                  <div class="neo-thumb">
-                    <div class="neo-thumb-ring"></div>
-                    <div class="neo-thumb-core">
-                      <div class="neo-thumb-icon">
-                        <div class="neo-thumb-wave"></div>
-                        <div class="neo-thumb-pulse"></div>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="neo-gesture-area"></div>
-                  <div class="neo-interaction-feedback">
-                    <div class="neo-ripple"></div>
-                    <div class="neo-progress-arc"></div>
-                  </div>
-                  <div class="neo-status">
-                    <div class="neo-status-indicator">
-                      <div class="neo-status-dot"></div>
-                      <div class="neo-status-text"></div>
-                    </div>
-                  </div>
-                </label>
-              </div>
-          </div>
-
-          <button id="send-button" aria-label="Send message" data-shortcut="Ctrl+Enter">Send</button>
+          <button id="send-button" aria-label="Send message" data-shortcut="Ctrl+Enter">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+          </button>
         </div>
       </div>
     </div>

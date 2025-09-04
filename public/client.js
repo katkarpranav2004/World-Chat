@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     // --- Constants ---
     const AI_ACTION_PREFIX = '@ai';
+    const IS_MOBILE = /Mobi|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
     
     // Keyboard shortcuts configuration
     const SHORTCUTS = {
@@ -9,7 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
         GIF_PICKER: 'ctrl+g',
         SEND_MESSAGE: 'ctrl+enter',
         FOCUS_INPUT: 'ctrl+i',
-        HELP: 'ctrl+h'
+        HELP: 'ctrl+h',
+        AI_TRIGGER: 'alt+a' // New shortcut to trigger AI mode
     };
 
     // --- DOM Element Selection ---
@@ -24,6 +26,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const userCount = document.querySelector(".user-count");
     const aiPublicToggle = document.getElementById("ai-public-toggle");
     const aiToggleContainer = document.querySelector(".ai-toggle-container");
+    const helpButtonMobile = document.getElementById("help-button-mobile");
+    const terminal = document.querySelector('.terminal'); // Get terminal element
+    const debugOverlay = document.getElementById('debug-overlay'); // Get debug element
+
+    // --- Mobile Viewport & Keyboard Handling ---
+    function handleMobileViewport() {
+        // RESTORED: Ensure this only runs on mobile
+        if (!IS_MOBILE || !window.visualViewport) return;
+
+        const setAppHeight = () => {
+            // Set a CSS variable with the visual viewport's height.
+            document.documentElement.style.setProperty('--app-height', `${window.visualViewport.height}px`);
+        };
+
+        // Set initial height and update on resize (keyboard open/close)
+        window.visualViewport.addEventListener('resize', setAppHeight);
+        setAppHeight(); // Initial call
+    }
+
 
     // --- Keyboard Shortcut System ---
     let helpOverlayVisible = false;
@@ -32,51 +53,43 @@ document.addEventListener('DOMContentLoaded', () => {
     function createHelpOverlay() {
         const overlay = document.createElement('div');
         overlay.id = 'shortcut-help-overlay';
-        overlay.innerHTML = `
-            <div class="help-content">
-                <div class="help-header">
-                    <h3>⌨️ Keyboard Shortcuts</h3>
-                    <button class="help-close" aria-label="Close help">✕</button>
-                </div>
-                <div class="help-grid">
-                    <div class="shortcut-item">
-                        <span class="shortcut-key">Ctrl + /</span>
-                        <span class="shortcut-desc">Toggle AI mode (when typing @ai)</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <span class="shortcut-key">Ctrl + E</span>
-                        <span class="shortcut-desc">Open emoji picker</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <span class="shortcut-key">Ctrl + G</span>
-                        <span class="shortcut-desc">Open GIF picker</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <span class="shortcut-key">Ctrl + Enter</span>
-                        <span class="shortcut-desc">Send message</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <span class="shortcut-key">Ctrl + I</span>
-                        <span class="shortcut-desc">Focus message input</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <span class="shortcut-key">Ctrl + H</span>
-                        <span class="shortcut-desc">Show/hide this help</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <span class="shortcut-key">Enter</span>
-                        <span class="shortcut-desc">Send message (when input focused)</span>
-                    </div>
-                    <div class="shortcut-item">
-                        <span class="shortcut-key">Esc</span>
-                        <span class="shortcut-desc">Close pickers/dialogs</span>
-                    </div>
-                </div>
-                <div class="help-footer">
-                    <small>💡 Tip: Shortcuts work from anywhere in the chat</small>
-                </div>
+        
+        const mobileHelpContent = `
+            <div class="help-header">
+                <h3>📱 Mobile Guide</h3>
+                <button class="help-close" aria-label="Close help">✕</button>
             </div>
+            <div class="help-grid">
+                <div class="shortcut-item"><span class="shortcut-key">😊</span><span class="shortcut-desc">Tap to open emoji picker</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">GIF</span><span class="shortcut-desc">Tap to open GIF picker</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">@ai</span><span class="shortcut-desc">Type to show AI options</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">🤖</span><span class="shortcut-desc">Toggle Public/Private AI chat</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">▶️</span><span class="shortcut-desc">Tap to send your message</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">⌀</span><span class="shortcut-desc">Tap to disconnect or reconnect</span></div>
+            </div>
+            <div class="help-footer"><small>💡 Tip: Tap outside this box to close it</small></div>
         `;
+
+        const desktopHelpContent = `
+            <div class="help-header">
+                <h3>⌨️ Keyboard Shortcuts</h3>
+                <button class="help-close" aria-label="Close help">✕</button>
+            </div>
+            <div class="help-grid">
+                <div class="shortcut-item"><span class="shortcut-key">Alt + A</span><span class="shortcut-desc">Toggle AI mode</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">Ctrl + /</span><span class="shortcut-desc">Toggle Public/Private AI mode</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">Ctrl + E</span><span class="shortcut-desc">Open emoji picker</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">Ctrl + G</span><span class="shortcut-desc">Open GIF picker</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">Ctrl + Enter</span><span class="shortcut-desc">Send message</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">Ctrl + I</span><span class="shortcut-desc">Focus message input</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">Ctrl + H</span><span class="shortcut-desc">Show/hide this help</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">Enter</span><span class="shortcut-desc">Send message (when input focused)</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">Esc</span><span class="shortcut-desc">Close pickers/dialogs</span></div>
+            </div>
+            <div class="help-footer"><small>💡 Tip: Shortcuts work from anywhere in the chat</small></div>
+        `;
+
+        overlay.innerHTML = `<div class="help-content">${IS_MOBILE ? mobileHelpContent : desktopHelpContent}</div>`;
         document.body.appendChild(overlay);
 
         // Close button functionality
@@ -134,6 +147,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Global keyboard event handler
     document.addEventListener('keydown', (e) => {
+        // Don't run keyboard shortcuts on mobile devices
+        if (IS_MOBILE) return;
+
         // Handle Escape key
         if (e.key === 'Escape') {
             e.preventDefault();
@@ -159,7 +175,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 showTooltip('AI mode: ' + (aiPublicToggle.checked ? 'Public' : 'Private'));
             }
         }
-        else if (matchesShortcut(e, SHORTCUTS.EMOJI_PICKER)) {
+        else if (matchesShortcut(e, SHORTCUTS.AI_TRIGGER)) {
+            e.preventDefault();
+            // Toggle AI prefix
+            if (inputField.value.trim().startsWith(AI_ACTION_PREFIX)) {
+                // It's active, so deactivate it by removing the prefix
+                inputField.value = inputField.value.substring(AI_ACTION_PREFIX.length).trimStart();
+                showTooltip('AI mode deactivated');
+            } else {
+                // It's not active, so activate it by prepending the prefix
+                inputField.value = AI_ACTION_PREFIX + ' ' + inputField.value;
+                showTooltip('AI mode activated');
+            }
+            inputField.focus();
+            // Manually dispatch an 'input' event to show/hide the AI toggle
+            inputField.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        else if (matchesShortcut(e, SHORTCUTT.EMOJI_PICKER)) {
             e.preventDefault();
             document.getElementById('emoji-button')?.click();
             showTooltip('Emoji picker opened');
@@ -216,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (hints.length === 0) {
-            hints.push('Ctrl+H for shortcuts');
+            hints.push(IS_MOBILE ? 'Tap the ? for help' : 'Ctrl+H for shortcuts');
         }
 
         // Update connection status with hints when idle
@@ -314,6 +346,14 @@ document.addEventListener('DOMContentLoaded', () => {
         disconnectBtn.addEventListener("click", () => {
             if (socket.connected) socket.disconnect();
             else socket.connect();
+        });
+    }
+
+    if (helpButtonMobile) {
+        helpButtonMobile.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (helpOverlayVisible) hideHelpOverlay();
+            else showHelpOverlay();
         });
     }
 
@@ -443,12 +483,40 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Initial Setup ---
-    addMessage("Welcome to World-Chat! Type '@ai your question' to talk to the AI.", false);
     
-    // Show initial hint after a moment
-    setTimeout(() => {
-        showTooltip('Press Ctrl+H for keyboard shortcuts', 4000);
-    }, 3000);
+    // Try early desktop focus (before assets fully load)
+    if (!IS_MOBILE && inputField) {
+        inputField.focus();
+    }
+
+    // Use addEventListener instead of assigning window.onload (prevents overwrite by other scripts)
+    window.addEventListener('load', () => {
+        addMessage("Welcome to World-Chat! Type '@ai your question' to talk to the AI.", false);
+        
+        if (IS_MOBILE) {
+            inputField.placeholder = "Tap to start typing...";
+            handleMobileViewport();
+
+            const focusOnFirstTap = () => {
+                inputField.focus();
+                document.body.removeEventListener('click', focusOnFirstTap);
+                document.body.removeEventListener('touchend', focusOnFirstTap);
+            };
+            document.body.addEventListener('click', focusOnFirstTap);
+            document.body.addEventListener('touchend', focusOnFirstTap);
+        } else {
+            // Reinforce focus after full load & after a short delay (handles late scripts stealing focus)
+            if (document.activeElement !== inputField) inputField.focus();
+            setTimeout(() => {
+                if (document.activeElement !== inputField) inputField.focus();
+            }, 250);
+        }
+
+        setTimeout(() => {
+            const hintMessage = IS_MOBILE ? 'Tap the ? button for help' : 'Press Ctrl+H for keyboard shortcuts';
+            showTooltip(hintMessage, 4000);
+        }, 3000);
+    });
 });
 
 // --- Global Function for Sending Content ---

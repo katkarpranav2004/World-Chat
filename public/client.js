@@ -12,8 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
         GIF_PICKER: `${MOD_KEY}+g`,
         SEND_MESSAGE: `${MOD_KEY}+enter`,
         FOCUS_INPUT: `${MOD_KEY}+i`,
-        HELP: 'alt+h', // Changed from MOD_KEY+h
-        AI_TRIGGER: 'alt+a' // New shortcut to trigger AI mode
+        HELP: 'f1', // CHANGED: Switched to F1 for universal, conflict-free help access
+        AI_TRIGGER: 'alt+a'
     };
 
     // --- DOM Element Selection ---
@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + G</span><span class="shortcut-desc">Open GIF picker</span></div>
                 <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + Enter</span><span class="shortcut-desc">Send message</span></div>
                 <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + I</span><span class="shortcut-desc">Focus message input</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">Alt + H</span><span class="shortcut-desc">Show/hide this help</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">F1</span><span class="shortcut-desc">Show/hide this help</span></div>
                 <div class="shortcut-item"><span class="shortcut-key">Enter</span><span class="shortcut-desc">Send message (when input focused)</span></div>
                 <div class="shortcut-item"><span class="shortcut-key">Esc</span><span class="shortcut-desc">Close pickers/dialogs</span></div>
             </div>
@@ -265,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (hints.length === 0) {
-            hints.push(IS_MOBILE ? 'Tap the ? for help' : `Alt+H for shortcuts`);
+            hints.push(IS_MOBILE ? 'Tap the ? for help' : `F1 for shortcuts`);
         }
 
         // Update connection status with hints when idle
@@ -523,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.addEventListener('touchend', focusOnFirstTap);
         } else {
             // Set desktop placeholder dynamically
-            inputField.placeholder = `Type your message... (Alt+H for shortcuts)`;
+            inputField.placeholder = `Type your message... (F1 for shortcuts)`;
 
             // Reinforce focus after full load & after a short delay (handles late scripts stealing focus)
             if (document.activeElement !== inputField) inputField.focus();
@@ -533,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         setTimeout(() => {
-            const hintMessage = IS_MOBILE ? 'Tap the ? for help' : `Press Alt+H for keyboard shortcuts`;
+            const hintMessage = IS_MOBILE ? 'Tap the ? for help' : `Press F1 for keyboard shortcuts`;
             showTooltip(hintMessage, 4000);
         }, 3000);
     });

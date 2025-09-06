@@ -1,73 +1,75 @@
-// --- Cursor Logic ---
-// This logic is now in the global scope, same as the original file, to ensure it runs immediately.
+/**
+ * @file support.js
+ * @description Manages auxiliary UI components and features for World-Chat.
+ * This includes the custom cursor, live clock, and the emoji/GIF picker panels.
+ * This script is loaded with 'defer', so it executes after the DOM is parsed.
+ */
+
+// ===================================================================================
+// --- CURSOR LOGIC ---
+// ===================================================================================
 const cursor = document.querySelector(".custom-cursor");
 if (cursor) {
     document.addEventListener("mousemove", (e) => {
         cursor.style.left = e.clientX + "px";
         cursor.style.top = e.clientY + "px";
     });
-    document.addEventListener("mousedown", () => {
-        cursor.style.transform = "scale(0.8)";
-    });
-    document.addEventListener("mouseup", () => {
-        cursor.style.transform = "scale(1)";
-    });
+    document.addEventListener("mousedown", () => cursor.style.transform = "scale(0.8)");
+    document.addEventListener("mouseup", () => cursor.style.transform = "scale(1)");
 }
 
-// --- Clock Logic ---
-// This is also in the global scope, matching the original structure.
+// ===================================================================================
+// --- CLOCK LOGIC ---
+// ===================================================================================
 const clockElement = document.querySelector('.clock');
-function updateClock() {
-    const now = new Date();
-    // Reverted to the exact time formatting from your original file.
-    let hours = now.getHours();
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12; // the hour '0' should be '12'
-    hours = String(hours).padStart(2, '0');
-    const timeString = `${hours}:${minutes}:${seconds} ${ampm}`;
-    
-    if (clockElement && clockElement.textContent !== timeString) {
-        clockElement.textContent = timeString;
-    }
-}
 if (clockElement) {
+    /** Updates the clock element with the current time. */
+    function updateClock() {
+        const now = new Date();
+        let hours = now.getHours();
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        const seconds = String(now.getSeconds()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // Convert hour '0' to '12'
+        const timeString = `${String(hours).padStart(2, '0')}:${minutes}:${seconds} ${ampm}`;
+        
+        if (clockElement.textContent !== timeString) {
+            clockElement.textContent = timeString;
+        }
+    }
     clockElement.classList.add('show');
     setInterval(updateClock, 1000);
-    updateClock();
-} else {
-    console.error("Clock element not found");
+    updateClock(); // Initial call
 }
 
+// ===================================================================================
+// --- PICKER LOGIC ---
+// ===================================================================================
 
-// --- Picker and Other Logic ---
-// This part of the script needs to wait for the DOM to load, which is handled
-// by the 'defer' attribute on the <script> tag in index.html.
-
+// --- DOM Element Selection ---
 const emojiButton = document.getElementById("emoji-button");
 const gifButton = document.getElementById("gif-button");
 const emojiPickerElement = document.getElementById("emoji-picker");
 const gifPickerElement = document.getElementById("gif-picker");
 const gifSearchInput = document.getElementById("gif-search");
 const gifResultsContainer = document.getElementById("gif-results");
-const messageInputField = document.getElementById("message-input"); // Get the main message input
+const messageInputField = document.getElementById("message-input");
 
-let emojiPicker;
-let gifSearchTimeout;
+// --- State ---
+let emojiPicker; // To hold the EmojiMart instance
+let gifSearchTimeout; // To hold the debounce timer
 
-// --- Emoji Picker Logic ---
+// --- Emoji Picker Implementation ---
 if (emojiButton && emojiPickerElement) {
     emojiButton.addEventListener("click", (event) => {
         event.stopPropagation();
-        // Hide the other picker and toggle the current one
         gifPickerElement.classList.remove('visible');
         emojiPickerElement.classList.toggle('visible');
 
         const isVisible = emojiPickerElement.classList.contains('visible');
 
-        // Initialize picker only once when it's first opened
+        // LAZY LOADING: Initialize the heavy EmojiMart picker only on its first opening.
         if (isVisible && !emojiPicker) {
             emojiPicker = new EmojiMart.Picker({
                 data: async () => {
@@ -77,31 +79,31 @@ if (emojiButton && emojiPickerElement) {
                 parent: emojiPickerElement,
                 theme: 'dark',
                 onEmojiSelect: (emoji) => {
-                    // Append the selected emoji to the main input field
                     if (messageInputField) {
                         messageInputField.value += emoji.native;
-                        // Trigger an input event so other parts of the app can react if needed
                         messageInputField.dispatchEvent(new Event('input', { bubbles: true }));
                     }
-                    // DO NOT hide the picker after selection.
+                    // The picker remains open for multiple emoji selections.
                 }
             });
         }
 
-        // If the picker is now visible, focus its search input
+        // Auto-focus the search bar inside the picker's Shadow DOM.
         if (isVisible) {
-            // Use a small timeout to wait for the web component to render its shadow DOM
             setTimeout(() => {
                 const searchInput = emojiPickerElement.querySelector('em-emoji-picker')?.shadowRoot.querySelector('input[type="search"]');
-                if (searchInput) {
-                    searchInput.focus();
-                }
+                if (searchInput) searchInput.focus();
             }, 100);
         }
     });
 }
 
-// --- GIF Picker Logic ---
+// --- GIF Picker Implementation ---
+
+/**
+ * Fetches GIFs from the backend API and displays them in the picker.
+ * @param {string} [query=""] - The search query. If empty, fetches trending GIFs.
+ */
 async function fetchAndDisplayGifs(query = "") {
     if (!gifResultsContainer) return;
     gifResultsContainer.innerHTML = '<p>Loading GIFs...</p>';
@@ -118,31 +120,22 @@ async function fetchAndDisplayGifs(query = "") {
             data.data.forEach((gif) => {
                 const img = document.createElement("img");
 
-                // --- PERFORMANCE OPTIMIZATION ---
-                // 1. Store both static and animated URLs.
+                // PERFORMANCE OPTIMIZATION: Load a static preview image first.
+                // The animated version is loaded only on mouse hover. This makes the
+                // GIF panel appear much faster and saves significant bandwidth.
                 const staticSrc = gif.images.fixed_height_small_still.url;
                 const animatedSrc = gif.images.fixed_height_small.url;
 
-                // 2. Load the small, static image by default to make the panel load fast.
                 img.src = staticSrc;
-                
                 img.alt = gif.title || "GIF";
                 img.classList.add('gif-item');
 
-                // 3. Animate the GIF only when the user hovers over it.
-                img.addEventListener('mouseover', () => {
-                    if (img.src !== animatedSrc) {
-                        img.src = animatedSrc;
-                    }
-                });
-                img.addEventListener('mouseout', () => {
-                    if (img.src !== staticSrc) {
-                        img.src = staticSrc;
-                    }
-                });
+                // Event listeners to swap between static and animated sources.
+                img.addEventListener('mouseover', () => { if (img.src !== animatedSrc) img.src = animatedSrc; });
+                img.addEventListener('mouseout', () => { if (img.src !== staticSrc) img.src = staticSrc; });
 
+                // On click, send the full-quality GIF via the global sendContent function.
                 img.addEventListener("click", () => {
-                    // Use the globally available function from client.js
                     if (window.sendContent) {
                         window.sendContent({
                             type: 'gif',
@@ -150,7 +143,6 @@ async function fetchAndDisplayGifs(query = "") {
                             alt: gif.title
                         });
                     }
-                    // FIX: Use the class-based system to hide the picker, not an inline style.
                     gifPickerElement.classList.remove('visible');
                 });
                 gifResultsContainer.appendChild(img);
@@ -167,28 +159,35 @@ async function fetchAndDisplayGifs(query = "") {
 if (gifButton && gifPickerElement && gifSearchInput) {
     gifButton.addEventListener("click", (event) => {
         event.stopPropagation();
-        // Hide the other picker and toggle the current one
         emojiPickerElement.classList.remove('visible');
         gifPickerElement.classList.toggle('visible');
 
         const isVisible = gifPickerElement.classList.contains('visible');
-        if (isVisible && !gifSearchInput.value) {
-            fetchAndDisplayGifs(); // Fetch trending on first open
-        }
         if (isVisible) {
+            // Fetch trending GIFs if the panel is opened with an empty search bar.
+            if (!gifSearchInput.value) fetchAndDisplayGifs();
             gifSearchInput.focus();
         }
     });
 
+    // DEBOUNCING: Wait for the user to stop typing before sending an API request.
+    // This prevents excessive API calls while the user is typing a search query.
     gifSearchInput.addEventListener("input", () => {
         clearTimeout(gifSearchTimeout);
         gifSearchTimeout = setTimeout(() => {
             fetchAndDisplayGifs(gifSearchInput.value.trim());
-        }, 500); // Debounce search
+        }, 500); // 500ms delay
     });
 }
 
-// --- Global Click Listener to Close Pickers ---
+// ===================================================================================
+// --- GLOBAL EVENT LISTENERS ---
+// ===================================================================================
+
+/**
+ * Global click listener to close any open picker when clicking outside of it.
+ * This provides an intuitive way for users to dismiss the panels.
+ */
 document.addEventListener("click", (event) => {
     if (emojiPickerElement && !emojiPickerElement.contains(event.target) && event.target !== emojiButton) {
         emojiPickerElement.classList.remove('visible');
@@ -198,7 +197,10 @@ document.addEventListener("click", (event) => {
     }
 });
 
-// --- Listen for close all pickers event (from keyboard shortcuts) ---
+/**
+ * Listens for a custom event dispatched from client.js (e.g., on 'Escape' key press)
+ * to close all open picker panels.
+ */
 document.addEventListener('close-all-pickers', () => {
     if (emojiPickerElement) emojiPickerElement.classList.remove('visible');
     if (gifPickerElement) gifPickerElement.classList.remove('visible');

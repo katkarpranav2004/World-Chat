@@ -1,24 +1,38 @@
+/**
+ * @file client.js
+ * @description Core client-side application logic for World-Chat.
+ * This script manages the WebSocket connection, handles all user interactions,
+ * renders chat messages, and orchestrates the overall user interface.
+ */
+
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Constants ---
+    // ===================================================================================
+    // --- CONSTANTS & CONFIGURATION ---
+    // ===================================================================================
+
     const AI_ACTION_PREFIX = '@ai';
     const IS_MOBILE = /Mobi|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
     const IS_MAC = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-    const MOD_KEY = IS_MAC ? 'meta' : 'ctrl'; // 'meta' is the Command key on Mac
-    
-    // Keyboard shortcuts configuration
+    const MOD_KEY = IS_MAC ? 'meta' : 'ctrl'; // 'meta' for Command key on Mac, 'ctrl' for others
+    const MOD_SYMBOL = IS_MAC ? '⌘' : 'Ctrl';
+
+    // Centralized keyboard shortcut definitions for maintainability.
     const SHORTCUTS = {
         AI_TOGGLE: `${MOD_KEY}+/`,
         EMOJI_PICKER: `${MOD_KEY}+e`,
         GIF_PICKER: `${MOD_KEY}+g`,
         SEND_MESSAGE: `${MOD_KEY}+enter`,
         FOCUS_INPUT: `${MOD_KEY}+i`,
-        HELP: 'f1', // CHANGED: Switched to F1 for universal, conflict-free help access
-        AI_TRIGGER: IS_MAC ? 'ctrl+a' : 'alt+a' // Use Ctrl+A on Mac, Alt+A on Windows
+        HELP: 'f1',
+        AI_TRIGGER: IS_MAC ? 'ctrl+a' : 'alt+a'
     };
 
-    // --- DOM Element Selection ---
+    // ===================================================================================
+    // --- DOM ELEMENT SELECTION ---
+    // ===================================================================================
+
     const socket = io();
-    window.chatSocket = socket;
+    window.chatSocket = socket; // Expose socket globally for support.js
 
     const chatMessages = document.querySelector(".chat-messages");
     const inputField = document.getElementById("message-input");
@@ -29,35 +43,209 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiPublicToggle = document.getElementById("ai-public-toggle");
     const aiToggleContainer = document.querySelector(".ai-toggle-container");
     const helpButtonMobile = document.getElementById("help-button-mobile");
-    const terminal = document.querySelector('.terminal'); // Get terminal element
-    // const debugOverlay = document.getElementById('debug-overlay'); // Get debug element
-    const MOD_SYMBOL = IS_MAC ? '⌘' : 'Ctrl'; // Define MOD_SYMBOL here for wider use
 
-    // --- Mobile Viewport & Keyboard Handling ---
+    // ===================================================================================
+    // --- STATE MANAGEMENT ---
+    // ===================================================================================
+
+    let helpOverlayVisible = false;
+
+    // ===================================================================================
+    // --- CORE FUNCTIONS & UI LOGIC ---
+    // ===================================================================================
+
+    /**
+     * Handles mobile viewport resizing, especially for the on-screen keyboard.
+     * Sets a CSS custom property `--app-height` to the visible viewport height.
+     * This allows the CSS to create a layout that adapts to the keyboard.
+     */
     function handleMobileViewport() {
-        // RESTORED: Ensure this only runs on mobile
         if (!IS_MOBILE || !window.visualViewport) return;
 
         const setAppHeight = () => {
-            // Set a CSS variable with the visual viewport's height.
             document.documentElement.style.setProperty('--app-height', `${window.visualViewport.height}px`);
         };
 
-        // Set initial height and update on resize (keyboard open/close)
         window.visualViewport.addEventListener('resize', setAppHeight);
         setAppHeight(); // Initial call
     }
 
+    /**
+     * Sends a message or AI command to the server via WebSocket.
+     */
+    function handleMessageSend() {
+        if (!inputField || !socket || !socket.connected) {
+            addMessage("You are not connected.", false);
+            return;
+        }
+        const messageContent = inputField.value.trim();
+        if (!messageContent) return;
 
-    // --- Keyboard Shortcut System ---
-    let helpOverlayVisible = false;
+        if (messageContent.startsWith(AI_ACTION_PREFIX)) {
+            const question = messageContent.substring(AI_ACTION_PREFIX.length).trim();
+            if (question) {
+                const isPublic = aiPublicToggle.checked;
+                addMessage(messageContent, true); // Display the user's query locally
+                addMessage('<div class="loader"><div class="bar red"></div><div class="bar orange"></div><div class="bar yellow"></div><div class="bar green"></div><div class="bar blue"></div><div class="bar violet"></div></div>', false, 'ai-loader-message', true);
+                socket.emit('ask-ai', { question, isPublic });
+            }
+        } else {
+            const messageId = addMessage(messageContent, true);
+            socket.emit("user-message", messageContent, () => {
+                // This callback runs when the server acknowledges the message.
+                const messageEl = document.getElementById(messageId);
+                if (messageEl) {
+                    const statusIndicator = messageEl.querySelector('.message-status');
+                    if (statusIndicator) statusIndicator.textContent = 'sent';
+                }
+            });
+        }
 
-    // Create help overlay
+        // Reset input field and UI state
+        inputField.value = "";
+        aiToggleContainer.style.display = 'none';
+        aiPublicToggle.checked = false;
+        inputField.focus();
+        setTimeout(updateStatusHints, 100);
+    }
+
+    /**
+     * Creates and appends a new message to the chat window.
+     * @param {string} content - The message content (text or HTML).
+     * @param {boolean} isSentByMe - True if the message is from the current user.
+     * @param {string|null} [id=null] - An optional ID to assign to the message element.
+     * @param {boolean} [isHtml=false] - True if the content is HTML and should not be parsed as Markdown.
+     * @returns {string} The ID of the created message element.
+     */
+    function addMessage(content, isSentByMe, id = null, isHtml = false) {
+        if (!chatMessages) return;
+
+        const messageEl = document.createElement("div");
+        messageEl.classList.add("message", isSentByMe ? "sent" : "received");
+        
+        if (id) {
+            messageEl.id = id;
+        } else if (isSentByMe) {
+            messageEl.id = `msg-${Date.now()}`;
+        }
+
+        const messageContentEl = document.createElement("div");
+        messageContentEl.classList.add("message-content");
+
+        if (isHtml) {
+            // Sanitize HTML content to prevent XSS attacks before rendering.
+            messageContentEl.innerHTML = DOMPurify.sanitize(content, { USE_PROFILES: { html: true } });
+        } else {
+            // For plain text, parse as Markdown and then sanitize.
+            const formattedContent = DOMPurify.sanitize(marked.parse(content), { USE_PROFILES: { html: true } });
+            messageContentEl.innerHTML = formattedContent;
+        }
+
+        messageEl.appendChild(messageContentEl);
+
+        // Add a "sending..." status indicator only to user-sent text messages.
+        if (isSentByMe && !isHtml && !content.trim().startsWith(AI_ACTION_PREFIX)) {
+            const statusIndicator = document.createElement('span');
+            statusIndicator.classList.add('message-status');
+            statusIndicator.textContent = 'sending';
+            messageEl.appendChild(statusIndicator);
+        }
+
+        chatMessages.appendChild(messageEl);
+        scrollToBottom();
+        return messageEl.id;
+    }
+
+    /**
+     * Scrolls the chat message container to the bottom.
+     */
+    function scrollToBottom() {
+        if (chatMessages) {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    }
+
+    /**
+     * Updates the connection status display in the status bar.
+     * @param {string} text - The text to display.
+     * @param {string} status - The status class ('connected', 'disconnected', 'connecting').
+     */
+    function updateConnectionStatus(text, status) {
+        if (!connectionStatus) return;
+        connectionStatus.textContent = text;
+        connectionStatus.className = 'connection-status'; // Reset classes
+        connectionStatus.classList.add(status);
+        if (disconnectBtn) {
+            disconnectBtn.classList.toggle('connected', status === 'connected');
+        }
+    }
+
+    /**
+     * Updates the online user count display.
+     * @param {number} count - The number of users online.
+     */
+    function updateUserCount(count) {
+        if (userCount) {
+            userCount.textContent = count;
+        }
+    }
+
+    /**
+     * Updates the contextual hint in the status bar (e.g., "F1 for shortcuts").
+     */
+    function updateStatusHints() {
+        const hints = [];
+        if (inputField.value.trim().startsWith(AI_ACTION_PREFIX)) {
+            hints.push(`${MOD_SYMBOL}+/ to toggle AI mode`);
+        }
+        
+        if (hints.length === 0) {
+            hints.push(IS_MOBILE ? 'Tap the ? for help' : `F1 (or Fn+F1) for shortcuts`);
+        }
+
+        if (socket.connected && connectionStatus.textContent === 'Connected') {
+            connectionStatus.textContent = hints[0];
+        }
+    }
+
+    /**
+     * Displays a temporary tooltip near the chat input.
+     * @param {string} message - The message to display in the tooltip.
+     * @param {number} [duration=2000] - How long the tooltip should be visible in ms.
+     */
+    function showTooltip(message, duration = 2000) {
+        const existing = document.querySelector('.shortcut-tooltip');
+        if (existing) existing.remove();
+
+        const tooltip = document.createElement('div');
+        tooltip.className = 'shortcut-tooltip';
+        tooltip.textContent = message;
+        document.body.appendChild(tooltip);
+
+        const inputRect = inputField.getBoundingClientRect();
+        tooltip.style.left = inputRect.left + 'px';
+        tooltip.style.top = (inputRect.top - 40) + 'px';
+
+        requestAnimationFrame(() => tooltip.classList.add('visible'));
+        setTimeout(() => {
+            tooltip.classList.remove('visible');
+            setTimeout(() => tooltip.remove(), 300);
+        }, duration);
+    }
+
+    // ===================================================================================
+    // --- KEYBOARD SHORTCUT SYSTEM ---
+    // ===================================================================================
+
+    /**
+     * Dynamically creates and injects the help overlay into the DOM.
+     * The content is tailored based on the user's operating system (Mac/Windows).
+     * @returns {HTMLElement} The created overlay element.
+     */
     function createHelpOverlay() {
         const overlay = document.createElement('div');
         overlay.id = 'shortcut-help-overlay';
-        const MOD_SYMBOL = IS_MAC ? '⌘' : 'Ctrl';
-        const AI_TRIGGER_TEXT = IS_MAC ? 'Ctrl + A' : 'Alt + A'; // Display correct shortcut text
+        const AI_TRIGGER_TEXT = IS_MAC ? 'Ctrl + A' : 'Alt + A';
 
         const mobileHelpContent = `
             <div class="help-header">
@@ -76,10 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
 
         const desktopHelpContent = `
-            <div class="help-header">
-                <h3>⌨️ Keyboard Shortcuts</h3>
-                <button class="help-close" aria-label="Close help">✕</button>
-            </div>
+            <div class="help-header"><h3>⌨️ Keyboard Shortcuts</h3><button class="help-close" aria-label="Close help">✕</button></div>
             <div class="help-grid">
                 <div class="shortcut-item" data-shortcut="AI_TRIGGER"><span class="shortcut-key">${AI_TRIGGER_TEXT}</span><span class="shortcut-desc">Toggle AI mode</span></div>
                 <div class="shortcut-item" data-shortcut="AI_TOGGLE"><span class="shortcut-key">${MOD_SYMBOL} + /</span><span class="shortcut-desc">Toggle Public/Private AI mode</span></div>
@@ -97,82 +282,56 @@ document.addEventListener('DOMContentLoaded', () => {
         overlay.innerHTML = `<div class="help-content">${IS_MOBILE ? mobileHelpContent : desktopHelpContent}</div>`;
         document.body.appendChild(overlay);
 
-        // Close button functionality
-        const closeBtn = overlay.querySelector('.help-close');
-        closeBtn.addEventListener('click', hideHelpOverlay);
-        
-        // Close on overlay click (but not content click)
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) hideHelpOverlay();
-        });
+        // --- Event Listeners for the Overlay ---
+        overlay.querySelector('.help-close').addEventListener('click', hideHelpOverlay);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) hideHelpOverlay(); });
 
-        // --- NEW: Make help grid interactive ---
+        // Make the help grid interactive by triggering actions on click.
         const helpGrid = overlay.querySelector('.help-grid');
         if (helpGrid) {
             helpGrid.addEventListener('click', (e) => {
                 const item = e.target.closest('.shortcut-item');
-                if (!item) return;
+                if (!item || !item.dataset.shortcut) return;
 
                 const action = item.dataset.shortcut;
-                if (!action) return;
-
-                // Perform action based on the clicked shortcut
-                switch (action) {
-                    case 'AI_TRIGGER':
-                        if (inputField.value.trim().startsWith(AI_ACTION_PREFIX)) {
-                            inputField.value = inputField.value.substring(AI_ACTION_PREFIX.length).trimStart();
-                            showTooltip('AI mode deactivated');
-                        } else {
-                            inputField.value = AI_ACTION_PREFIX + ' ' + inputField.value;
-                            showTooltip('AI mode activated');
-                        }
-                        inputField.focus();
-                        inputField.dispatchEvent(new Event('input', { bubbles: true }));
-                        break;
-                    case 'AI_TOGGLE':
-                        if (aiToggleContainer.style.display === 'flex') {
-                            aiPublicToggle.checked = !aiPublicToggle.checked;
-                            showTooltip('AI mode: ' + (aiPublicToggle.checked ? 'Public' : 'Private'));
-                        }
-                        break;
-                    case 'EMOJI_PICKER':
-                        // FIX: Stop this click from bubbling up to the global 'click-outside' listener
-                        e.stopPropagation(); 
-                        document.getElementById('emoji-button')?.click();
-                        break;
-                    case 'GIF_PICKER':
-                        // FIX: Stop this click from bubbling up to the global 'click-outside' listener
-                        e.stopPropagation();
-                        document.getElementById('gif-button')?.click();
-                        break;
-                    case 'FOCUS_INPUT':
-                        inputField.focus();
-                        break;
-                    case 'SEND_MESSAGE':
-                    case 'ENTER':
-                        handleMessageSend();
-                        break;
-                    // For HELP and ESC, the default action is to close the overlay.
-                    case 'HELP':
-                    case 'ESC':
-                        break;
+                
+                // Stop propagation for picker actions to prevent the global 'click-outside'
+                // listener in support.js from immediately closing the opened panel.
+                if (action === 'EMOJI_PICKER' || action === 'GIF_PICKER') {
+                    e.stopPropagation();
                 }
+
+                // Simulate a keydown event to trigger the action via the global handler.
+                // This avoids duplicating logic and keeps behavior consistent.
+                const keyMap = {
+                    AI_TRIGGER: { key: 'a', [IS_MAC ? 'ctrlKey' : 'altKey']: true },
+                    AI_TOGGLE: { key: '/', [MOD_KEY + 'Key']: true },
+                    EMOJI_PICKER: { key: 'e', [MOD_KEY + 'Key']: true },
+                    GIF_PICKER: { key: 'g', [MOD_KEY + 'Key']: true },
+                    SEND_MESSAGE: { key: 'Enter', [MOD_KEY + 'Key']: true },
+                    FOCUS_INPUT: { key: 'i', [MOD_KEY + 'Key']: true },
+                    HELP: { key: 'F1' },
+                    ENTER: { key: 'Enter' },
+                    ESC: { key: 'Escape' }
+                };
+                if (keyMap[action]) {
+                    document.dispatchEvent(new KeyboardEvent('keydown', { ...keyMap[action], bubbles: true }));
+                }
+                
                 hideHelpOverlay();
             });
         }
-
         return overlay;
     }
 
+    /** Shows the help overlay. Creates it if it doesn't exist. */
     function showHelpOverlay() {
-        if (!document.getElementById('shortcut-help-overlay')) {
-            createHelpOverlay();
-        }
-        const overlay = document.getElementById('shortcut-help-overlay');
-        overlay.classList.add('visible');
+        if (!document.getElementById('shortcut-help-overlay')) createHelpOverlay();
+        document.getElementById('shortcut-help-overlay').classList.add('visible');
         helpOverlayVisible = true;
     }
 
+    /** Hides the help overlay. */
     function hideHelpOverlay() {
         const overlay = document.getElementById('shortcut-help-overlay');
         if (overlay) {
@@ -181,395 +340,185 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Parse shortcut string (e.g., "ctrl+e" -> {ctrl: true, key: "e"})
+    /**
+     * Parses a shortcut string (e.g., "ctrl+e") into an object.
+     * @param {string} shortcut - The shortcut string.
+     * @returns {{ctrl: boolean, alt: boolean, shift: boolean, meta: boolean, key: string}}
+     */
     function parseShortcut(shortcut) {
         const parts = shortcut.toLowerCase().split('+');
         const result = { ctrl: false, alt: false, shift: false, meta: false, key: '' };
-        
         parts.forEach(part => {
             if (part === 'ctrl') result.ctrl = true;
             else if (part === 'alt') result.alt = true;
             else if (part === 'shift') result.shift = true;
-            else if (part === 'meta') result.meta = true; // Add meta key support
+            else if (part === 'meta') result.meta = true;
             else result.key = part;
         });
-        
         return result;
     }
 
-    // Check if keyboard event matches shortcut
+    /**
+     * Checks if a keyboard event matches a defined shortcut string.
+     * @param {KeyboardEvent} event - The keyboard event.
+     * @param {string} shortcut - The shortcut string to check against.
+     * @returns {boolean}
+     */
     function matchesShortcut(event, shortcut) {
         const parsed = parseShortcut(shortcut);
         return event.ctrlKey === parsed.ctrl &&
                event.altKey === parsed.alt &&
                event.shiftKey === parsed.shift &&
-               event.metaKey === parsed.meta && // Check meta key for Mac
+               event.metaKey === parsed.meta &&
                event.key.toLowerCase() === parsed.key;
     }
 
-    // Global keyboard event handler
+    // ===================================================================================
+    // --- GLOBAL EVENT HANDLERS ---
+    // ===================================================================================
+
+    /**
+     * Global keyboard event handler.
+     * TRICKY IMPLEMENTATION: This listener uses the 'capture' phase (third argument is true).
+     * This is critical for ensuring shortcuts work even when focus is inside an
+     * encapsulated element like the emoji picker's search bar (which is in a Shadow DOM).
+     * The capture phase runs *before* the event reaches its target.
+     */
     document.addEventListener('keydown', (e) => {
-        // Don't run keyboard shortcuts on mobile devices
         if (IS_MOBILE) return;
 
-        // If the event target is an input/textarea, only allow shortcuts that use a modifier key (Ctrl, Alt, Meta).
-        // This prevents single-key shortcuts from firing when the user is just trying to type.
+        // When typing in an input, only allow shortcuts that use a modifier key,
+        // or specific single keys like Escape, Enter, and F1.
         const target = e.target;
         const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
         if (isInput && !e.ctrlKey && !e.altKey && !e.metaKey) {
-            // Allow specific non-modifier keys like 'Escape', 'Enter', and 'F1' to pass through.
-            if (e.key.toLowerCase() !== 'escape' && e.key.toLowerCase() !== 'enter' && e.key.toLowerCase() !== 'f1') {
+            const allowedKeys = ['escape', 'enter', 'f1'];
+            if (!allowedKeys.includes(e.key.toLowerCase())) {
                 return;
             }
         }
 
-        // Handle Escape key
+        // --- Shortcut Action Mapping ---
         if (e.key === 'Escape') {
             e.preventDefault();
-            if (helpOverlayVisible) {
-                hideHelpOverlay();
-            } else {
-                // Close any open pickers
-                document.dispatchEvent(new CustomEvent('close-all-pickers'));
-            }
+            if (helpOverlayVisible) hideHelpOverlay();
+            else document.dispatchEvent(new CustomEvent('close-all-pickers'));
             return;
         }
-
-        // Handle other shortcuts
         if (matchesShortcut(e, SHORTCUTS.HELP)) {
             e.preventDefault();
-            if (helpOverlayVisible) hideHelpOverlay();
-            else showHelpOverlay();
-        }
-        else if (matchesShortcut(e, SHORTCUTS.AI_TOGGLE)) {
+            if (helpOverlayVisible) hideHelpOverlay(); else showHelpOverlay();
+        } else if (matchesShortcut(e, SHORTCUTS.AI_TOGGLE)) {
             e.preventDefault();
             if (aiToggleContainer.style.display === 'flex') {
                 aiPublicToggle.checked = !aiPublicToggle.checked;
                 showTooltip('AI mode: ' + (aiPublicToggle.checked ? 'Public' : 'Private'));
             }
-        }
-        else if (matchesShortcut(e, SHORTCUTS.AI_TRIGGER)) {
+        } else if (matchesShortcut(e, SHORTCUTS.AI_TRIGGER)) {
             e.preventDefault();
-            // Toggle AI prefix
             if (inputField.value.trim().startsWith(AI_ACTION_PREFIX)) {
-                // It's active, so deactivate it by removing the prefix
                 inputField.value = inputField.value.substring(AI_ACTION_PREFIX.length).trimStart();
                 showTooltip('AI mode deactivated');
             } else {
-                // It's not active, so activate it by prepending the prefix
                 inputField.value = AI_ACTION_PREFIX + ' ' + inputField.value;
                 showTooltip('AI mode activated');
             }
             inputField.focus();
-            // Manually dispatch an 'input' event to show/hide the AI toggle
             inputField.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-        else if (matchesShortcut(e, SHORTCUTS.EMOJI_PICKER)) { // FIX: Corrected typo from SHORTCUTT to SHORTCUTS
+        } else if (matchesShortcut(e, SHORTCUTS.EMOJI_PICKER)) {
             e.preventDefault();
             document.getElementById('emoji-button')?.click();
             showTooltip('Emoji picker opened');
-        }
-        else if (matchesShortcut(e, SHORTCUTS.GIF_PICKER)) {
+        } else if (matchesShortcut(e, SHORTCUTS.GIF_PICKER)) {
             e.preventDefault();
             document.getElementById('gif-button')?.click();
             showTooltip('GIF picker opened');
-        }
-        else if (matchesShortcut(e, SHORTCUTS.SEND_MESSAGE)) {
+        } else if (matchesShortcut(e, SHORTCUTS.SEND_MESSAGE)) {
             e.preventDefault();
             if (inputField.value.trim()) {
                 handleMessageSend();
                 showTooltip('Message sent');
             }
-        }
-        else if (matchesShortcut(e, SHORTCUTS.FOCUS_INPUT)) {
+        } else if (matchesShortcut(e, SHORTCUTS.FOCUS_INPUT)) {
             e.preventDefault();
             inputField.focus();
             showTooltip('Input focused');
         }
-    }, true); // <-- ADD 'true' HERE to switch to the capture phase.
+    }, true);
 
-    // Tooltip system for shortcut feedback
-    function showTooltip(message, duration = 2000) {
-        // Remove existing tooltip
-        const existing = document.querySelector('.shortcut-tooltip');
-        if (existing) existing.remove();
+    // Listen for local event to display sent GIFs/emojis immediately.
+    document.addEventListener('local-message-sent', (e) => {
+        addMessage(e.detail.html, true, null, true);
+    });
 
-        const tooltip = document.createElement('div');
-        tooltip.className = 'shortcut-tooltip';
-        tooltip.textContent = message;
-        document.body.appendChild(tooltip);
-
-        // Position near the input area
-        const inputRect = inputField.getBoundingClientRect();
-        tooltip.style.left = inputRect.left + 'px';
-        tooltip.style.top = (inputRect.top - 40) + 'px';
-
-        // Show and auto-hide
-        requestAnimationFrame(() => tooltip.classList.add('visible'));
-        setTimeout(() => {
-            tooltip.classList.remove('visible');
-            setTimeout(() => tooltip.remove(), 300);
-        }, duration);
+    // Standard UI event listeners
+    if (disconnectBtn) disconnectBtn.addEventListener("click", () => socket.connected ? socket.disconnect() : socket.connect());
+    if (helpButtonMobile) helpButtonMobile.addEventListener('click', (e) => { e.preventDefault(); if (helpOverlayVisible) hideHelpOverlay(); else showHelpOverlay(); });
+    if (sendButton && inputField) {
+        sendButton.addEventListener("click", handleMessageSend);
+        inputField.addEventListener("keypress", (e) => { if (e.key === "Enter" && !e.ctrlKey) { e.preventDefault(); handleMessageSend(); } });
+    }
+    if (inputField && aiToggleContainer) {
+        inputField.addEventListener('input', () => {
+            const isAiCommand = inputField.value.trim().toLowerCase().startsWith(AI_ACTION_PREFIX);
+            aiToggleContainer.style.display = isAiCommand ? 'flex' : 'none';
+            updateStatusHints();
+        });
     }
 
-    // Update status bar with contextual hints
-    function updateStatusHints() {
-        const hints = [];
-        
-        if (inputField.value.trim().startsWith(AI_ACTION_PREFIX)) {
-            hints.push(`${MOD_SYMBOL}+/ to toggle AI mode`);
-        }
-        
-        if (hints.length === 0) {
-            hints.push(IS_MOBILE ? 'Tap the ? for help' : `F1 (or Fn+F1) for shortcuts`);
-        }
-
-        // Update connection status with hints when idle
-        if (socket.connected && connectionStatus.textContent === 'Connected') {
-            connectionStatus.textContent = hints[0];
-        }
-    }
-
-    // --- Socket Event Handlers ---
+    // ===================================================================================
+    // --- SOCKET.IO EVENT HANDLERS ---
+    // ===================================================================================
 
     socket.on("connect", () => {
         updateConnectionStatus("Connecting...", "connecting");
         setTimeout(() => {
             if (socket.connected) {
                 updateConnectionStatus("Connected", "connected");
-                setTimeout(() => updateStatusHints(), 2000); // Show hints after connection
+                setTimeout(updateStatusHints, 2000);
             }
         }, 1300);
     });
+    socket.on("disconnect", () => { updateConnectionStatus("Disconnected", "disconnected"); updateUserCount(0); });
+    socket.on("connect_error", (err) => updateConnectionStatus(`Connection failed: ${err.message}`, 'disconnected'));
+    socket.on("backend-user-message", (message, id) => { if (socket.id !== id) addMessage(message, false, id, message.trim().startsWith('<img')); });
+    socket.on("total-user", (count) => updateUserCount(count));
 
-    socket.on("disconnect", () => {
-        updateConnectionStatus("Disconnected", "disconnected");
-        updateUserCount(0);
-    });
-
-    socket.on("connect_error", (err) => {
-        updateConnectionStatus(`Connection failed: ${err.message}`, 'disconnected');
-    });
-
-    socket.on("backend-user-message", (message, id) => {
-        if (socket.id !== id) {
-            const isHtml = message.trim().startsWith('<img');
-            addMessage(message, false, id, isHtml);
-        }
-    });
-
-    socket.on("total-user", (count) => {
-        if (userCount) {
-            userCount.textContent = count;
-        }
-    });
-
+    // --- FIXED: Implemented AI response handlers ---
     socket.on('ai-response', (data) => {
-        const loaderMessage = document.getElementById('ai-loader-message');
-        const messageContentEl = loaderMessage ? loaderMessage.querySelector('.message-content') : null;
+        // This event is for the user who asked the question.
+        const loader = document.getElementById('ai-loader-message');
+        if (loader) {
+            loader.remove();
+        }
 
-        if (messageContentEl && !aiPublicToggle.checked) {
-            let content;
-            if (data.error) {
-                content = `🤖 **Ai Error:**\n${data.error}`;
-            } else {
-                content = `🤖 **Ai (Private):**\n${data.answer}`;
-            }
-            messageContentEl.innerHTML = DOMPurify.sanitize(marked.parse(content), { USE_PROFILES: { html: true } });
-            loaderMessage.classList.remove('sent');
-            loaderMessage.classList.add('received');
-            loaderMessage.removeAttribute('id');
+        if (data.answer) {
+            // Add the AI's answer, rendering it as Markdown.
+            addMessage(data.answer, false, null, false);
+        } else if (data.error) {
+            // Display an error message if something went wrong.
+            addMessage(`**AI Error:** ${data.error}`, false, null, false);
         }
     });
 
     socket.on('public-ai-message', (data) => {
-        const loaderMessage = document.getElementById('ai-loader-message');
-        const messageContentEl = loaderMessage ? loaderMessage.querySelector('.message-content') : null;
-
-        if (messageContentEl) {
-            const senderId = data.user === socket.id ? 'You' : `User ${data.user.substring(0, 4)}`;
-            let content;
-            if (data.error) {
-                content = `**(Public)** ${senderId} asked Ai, but there was an error: ${data.error}`;
-            } else {
-                content = `**(Public)** ${senderId} asked:\n\n> ${data.question}\n\n**🤖 Ai Replied:**\n\n${data.answer}`;
-            }
-            messageContentEl.innerHTML = DOMPurify.sanitize(marked.parse(content), { USE_PROFILES: { html: true } });
-            loaderMessage.classList.remove('sent');
-            loaderMessage.classList.add('received');
-            loaderMessage.removeAttribute('id');
-        } else if (data.user !== socket.id) {
-            const senderId = data.user === socket.id ? 'You' : `User ${data.user.substring(0, 4)}`;
-            let content;
-            if (data.error) {
-                content = `**(Public)** ${senderId} asked Ai, but there was an error: ${data.error}`;
-            } else {
-                content = `**(Public)** ${senderId} asked:\n ${data.question}\n\n**🤖 Ai Replied:**\n\n${data.answer}`;
-            }
-            addMessage(content, false);
-        }
+        // This event is for everyone else to see a public AI interaction.
+        const messageContent = `**Public AI Query:** "${data.question}"\n\n**AI Response:** ${data.answer || data.error}`;
+        addMessage(messageContent, false, `ai-public-${Date.now()}`, false);
     });
 
-    // --- UI Event Handlers ---
-    document.addEventListener('local-message-sent', (e) => {
-        addMessage(e.detail.html, true, null, true);
-    });
 
-    if (disconnectBtn) {
-        disconnectBtn.addEventListener("click", () => {
-            if (socket.connected) socket.disconnect();
-            else socket.connect();
-        });
-    }
+    // ===================================================================================
+    // --- INITIALIZATION ---
+    // ===================================================================================
 
-    if (helpButtonMobile) {
-        helpButtonMobile.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (helpOverlayVisible) hideHelpOverlay();
-            else showHelpOverlay();
-        });
-    }
-
-    if (sendButton && inputField) {
-        sendButton.addEventListener("click", handleMessageSend);
-        inputField.addEventListener("keypress", (e) => {
-            if (e.key === "Enter" && !e.ctrlKey) {
-                e.preventDefault();
-                handleMessageSend();
-            }
-        });
-    }
-
-    if (inputField && aiToggleContainer) {
-        inputField.addEventListener('input', () => {
-            const isAiCommand = inputField.value.trim().toLowerCase().startsWith(AI_ACTION_PREFIX);
-            aiToggleContainer.style.display = isAiCommand ? 'flex' : 'none';
-            
-            // Update status hints
-            updateStatusHints();
-        });
-    }
-
-    // --- Core Functions ---
-    
-    function handleMessageSend() {
-        if (!inputField || !socket || !socket.connected) {
-            addMessage("You are not connected.", false);
-            return;
-        }
-        const messageContent = inputField.value.trim();
-        if (!messageContent) return;
-
-        if (messageContent.startsWith(AI_ACTION_PREFIX)) {
-            const question = messageContent.substring(AI_ACTION_PREFIX.length).trim();
-            if (question) {
-                const isPublic = aiPublicToggle.checked;
-                addMessage(messageContent, true);
-                addMessage('<div class="loader"><div class="bar red"></div><div class="bar orange"></div><div class="bar yellow"></div><div class="bar green"></div><div class="bar blue"></div><div class="bar violet"></div></div>', false, 'ai-loader-message', true);
-                socket.emit('ask-ai', { question, isPublic });
-            }
-        } else {
-            const messageId = addMessage(messageContent, true); 
-            socket.emit("user-message", messageContent, () => {
-                const messageEl = document.getElementById(messageId);
-                if (messageEl) {
-                    const statusIndicator = messageEl.querySelector('.message-status');
-                    if (statusIndicator) {
-                        statusIndicator.textContent = 'sent';
-                    }
-                }
-            });
-        }
-
-        inputField.value = "";
-        aiToggleContainer.style.display = 'none';
-        aiPublicToggle.checked = false;
-        inputField.focus();
-        
-        // Reset status hints
-        setTimeout(updateStatusHints, 100);
-    }
-
-    function updateConnectionStatus(text, status) {
-        if (!connectionStatus) return;
-        connectionStatus.textContent = text;
-        connectionStatus.className = 'connection-status';
-        connectionStatus.classList.add(status);
-        if (disconnectBtn) {
-            disconnectBtn.classList.toggle('connected', status === 'connected');
-        }
-    }
-
-    function addMessage(content, isSentByMe, id = null, isHtml = false) {
-        if (!chatMessages) return;
-
-        const messageEl = document.createElement("div");
-        messageEl.classList.add("message", isSentByMe ? "sent" : "received");
-        
-        // FIX: Apply ID to message element, not content element
-        if (id) {
-            messageEl.id = id;
-        } else if (isSentByMe) {
-            messageEl.id = `msg-${Date.now()}`;
-        }
-
-        const messageContentEl = document.createElement("div");
-        messageContentEl.classList.add("message-content");
-
-        if (isHtml) {
-            messageContentEl.innerHTML = content;
-        } else {
-            if (typeof marked === 'function' && typeof DOMPurify !== 'undefined') {
-                const formattedContent = DOMPurify.sanitize(marked.parse(content), { USE_PROFILES: { html: true } });
-                messageContentEl.innerHTML = formattedContent;
-            } else {
-                messageContentEl.textContent = content;
-            }
-        }
-
-        messageEl.appendChild(messageContentEl);
-
-        // FIX: Only add a status indicator to regular user messages.
-        // This prevents the "sending" status on AI queries and GIFs.
-        if (isSentByMe && !isHtml && !content.trim().startsWith(AI_ACTION_PREFIX)) {
-            const statusIndicator = document.createElement('span');
-            statusIndicator.classList.add('message-status');
-            statusIndicator.textContent = 'sending';
-            messageEl.appendChild(statusIndicator);
-        }
-
-        chatMessages.appendChild(messageEl);
-        scrollToBottom();
-        return messageEl.id;
-    }
-
-    function updateUserCount(count) {
-        if (userCount) {
-            userCount.textContent = count;
-        }
-    }
-
-    function scrollToBottom() {
-        if (chatMessages) {
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-    }
-
-    // --- Initial Setup ---
-    
-    // Try early desktop focus (before assets fully load)
-    if (!IS_MOBILE && inputField) {
-        inputField.focus();
-    }
-
-    // Use addEventListener instead of assigning window.onload (prevents overwrite by other scripts)
+    // Use window.addEventListener('load', ...) for reliability, ensuring all assets are loaded.
     window.addEventListener('load', () => {
         addMessage("Welcome to World-Chat! Type '@ai your question' to talk to the AI.", false);
         
         if (IS_MOBILE) {
             inputField.placeholder = "Tap to start typing...";
             handleMobileViewport();
-
             const focusOnFirstTap = () => {
                 inputField.focus();
                 document.body.removeEventListener('click', focusOnFirstTap);
@@ -578,14 +527,10 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.addEventListener('click', focusOnFirstTap);
             document.body.addEventListener('touchend', focusOnFirstTap);
         } else {
-            // Set desktop placeholder dynamically
             inputField.placeholder = `Type your message... (F1 or Fn+F1 for shortcuts)`;
-
-            // Reinforce focus after full load & after a short delay (handles late scripts stealing focus)
+            // Reinforce focus after load to counter any scripts that might steal it.
             if (document.activeElement !== inputField) inputField.focus();
-            setTimeout(() => {
-                if (document.activeElement !== inputField) inputField.focus();
-            }, 250);
+            setTimeout(() => { if (document.activeElement !== inputField) inputField.focus(); }, 250);
         }
 
         setTimeout(() => {
@@ -595,8 +540,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// --- Global Function for Sending Content ---
-// We attach this to the window object so support.js can call it.
+/**
+ * @description Global function to handle sending rich content (GIFs, Emojis).
+ * Exposed on the window object to be accessible from support.js.
+ * @param {{type: 'gif'|'emoji', content: string, alt?: string}} data
+ */
 window.sendContent = function({ type, content, alt = '' }) {
     const messageInput = document.getElementById('message-input');
     if (!messageInput) return;
@@ -605,12 +553,11 @@ window.sendContent = function({ type, content, alt = '' }) {
         messageInput.value += content;
         messageInput.focus();
     } else if (type === 'gif') {
-        const socket = window.chatSocket; // Access socket from global scope
+        const socket = window.chatSocket;
         if (socket && socket.connected) {
             const gifHtml = `<img src="${content}" alt="${alt}" class="gif-message">`;
             socket.emit('user-message', gifHtml, () => {
-                // The appendMessage function is defined inside DOMContentLoaded,
-                // so we need to call it from there. We can emit a local event.
+                // Dispatch a local event to have the main client script render the sent GIF immediately.
                 document.dispatchEvent(new CustomEvent('local-message-sent', { detail: { html: gifHtml } }));
             });
         }

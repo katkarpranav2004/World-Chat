@@ -13,12 +13,13 @@
   --toggle-bg: #181c20;
   --toggle-off-color: #8a8a8a; /* Muted grey for off-state */
   --toggle-on-color: var(--tertiary-color); /* Using your theme's highlight color */
-  --toggle-transition: 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+  --toggle-transition: 0.3s cubic-bezier(0.25, 1, 0.5, 1.7);
 
   position: relative;
   display: inline-flex;
   flex-direction: column;
   font-family: "Segoe UI", Tahoma, sans-serif;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -105,7 +106,7 @@
 
 .neo-spectrum-bar {
   width: 1.5px;
-  height: 1.5px;
+  height: 6px;
   background-color: var(--toggle-on-color);
   opacity: 0.8;
 }

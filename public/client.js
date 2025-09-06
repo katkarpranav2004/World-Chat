@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         mac: {
             AI_TRIGGER: { key: 'alt+a', display: '⌥ + A' }, // OVERRIDE: Use Option+A for AI Trigger
-            AI_TOGGLE: { key: 'meta+/', display: '⌘ + /' },
+            AI_TOGGLE: { key: 'alt+/', display: '⌥ + /' }, // OVERRIDE: Use Option+/ for AI Toggle
             EMOJI_PICKER: { key: 'meta+e', display: '⌘ + E' },
             GIF_PICKER: { key: 'meta+g', display: '⌘ + G' },
             SEND_MESSAGE: { key: 'meta+enter', display: '⌘ + Enter' },
@@ -322,8 +322,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const action = item.dataset.shortcut;
                 // This avoids duplicating logic and keeps behavior consistent.
                 const keyMap = {
-                    AI_TRIGGER: { key: 'a', altKey: true }, // CORRECTED: Match override
-                    AI_TOGGLE: { key: '/', [IS_MAC ? 'metaKey' : 'altKey']: true },
+                    AI_TRIGGER: { key: 'a', altKey: true },
+                    AI_TOGGLE: { key: '/', altKey: true }, // CORRECTED: Use altKey for both platforms
                     EMOJI_PICKER: { key: 'e', [IS_MAC ? 'metaKey' : 'ctrlKey']: true },
                     GIF_PICKER: { key: 'g', [IS_MAC ? 'metaKey' : 'ctrlKey']: true },
                     SEND_MESSAGE: { key: 'Enter', [IS_MAC ? 'metaKey' : 'ctrlKey']: true },
@@ -384,13 +384,25 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function matchesShortcut(event, shortcut) {
         const parsed = parseShortcut(shortcut);
-        // Use event.code to check the physical key, not the character produced.
-        // This correctly handles cases like Option+A on Mac, which produces 'å' as event.key.
-        // We format the expected code by capitalizing the key and prefixing with "Key".
-        const expectedCode = parsed.key.length === 1 ? `Key${parsed.key.toUpperCase()}` : parsed.key;
+        
+        // Map for special keys where the shortcut string doesn't match the `event.code` pattern.
+        const codeMap = {
+            '/': 'Slash',
+            'enter': 'Enter',
+            'escape': 'Escape'
+        };
 
-        // For single-key shortcuts like 'F1', event.code is 'F1' and parsed.key is 'f1'.
-        // So we compare them case-insensitively.
+        let expectedCode;
+        if (codeMap[parsed.key]) {
+            expectedCode = codeMap[parsed.key];
+        } else if (parsed.key.length === 1) {
+            // For single letters like 'a', 'b', etc.
+            expectedCode = `Key${parsed.key.toUpperCase()}`;
+        } else {
+            // For keys like 'f1', 'f2', etc.
+            expectedCode = parsed.key;
+        }
+
         const codeMatches = event.code.toLowerCase() === expectedCode.toLowerCase();
 
         return event.ctrlKey === parsed.ctrl &&

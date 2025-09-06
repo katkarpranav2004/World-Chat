@@ -136,9 +136,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         break;
                     case 'EMOJI_PICKER':
+                        // FIX: Stop this click from bubbling up to the global 'click-outside' listener
+                        e.stopPropagation(); 
                         document.getElementById('emoji-button')?.click();
                         break;
                     case 'GIF_PICKER':
+                        // FIX: Stop this click from bubbling up to the global 'click-outside' listener
+                        e.stopPropagation();
                         document.getElementById('gif-button')?.click();
                         break;
                     case 'FOCUS_INPUT':
@@ -153,11 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 'ESC':
                         break;
                 }
-
-                // Close the help overlay after performing an action (unless opening another picker)
-                if (action !== 'EMOJI_PICKER' && action !== 'GIF_PICKER') {
-                    hideHelpOverlay();
-                }
+                hideHelpOverlay();
             });
         }
 

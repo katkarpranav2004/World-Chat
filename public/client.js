@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
         SEND_MESSAGE: `${MOD_KEY}+enter`,
         FOCUS_INPUT: `${MOD_KEY}+i`,
         HELP: 'f1', // CHANGED: Switched to F1 for universal, conflict-free help access
-        AI_TRIGGER: 'alt+a'
+        AI_TRIGGER: IS_MAC ? 'ctrl+a' : 'alt+a' // Use Ctrl+A on Mac, Alt+A on Windows
     };
 
     // --- DOM Element Selection ---
@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiToggleContainer = document.querySelector(".ai-toggle-container");
     const helpButtonMobile = document.getElementById("help-button-mobile");
     const terminal = document.querySelector('.terminal'); // Get terminal element
-    const debugOverlay = document.getElementById('debug-overlay'); // Get debug element
+    // const debugOverlay = document.getElementById('debug-overlay'); // Get debug element
     const MOD_SYMBOL = IS_MAC ? '⌘' : 'Ctrl'; // Define MOD_SYMBOL here for wider use
 
     // --- Mobile Viewport & Keyboard Handling ---
@@ -57,7 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const overlay = document.createElement('div');
         overlay.id = 'shortcut-help-overlay';
         const MOD_SYMBOL = IS_MAC ? '⌘' : 'Ctrl';
-        
+        const AI_TRIGGER_TEXT = IS_MAC ? 'Ctrl + A' : 'Alt + A'; // Display correct shortcut text
+
         const mobileHelpContent = `
             <div class="help-header">
                 <h3>📱 Mobile Guide</h3>
@@ -80,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button class="help-close" aria-label="Close help">✕</button>
             </div>
             <div class="help-grid">
-                <div class="shortcut-item"><span class="shortcut-key">Alt + A</span><span class="shortcut-desc">Toggle AI mode</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">${AI_TRIGGER_TEXT}</span><span class="shortcut-desc">Toggle AI mode</span></div>
                 <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + /</span><span class="shortcut-desc">Toggle Public/Private AI mode</span></div>
                 <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + E</span><span class="shortcut-desc">Open emoji picker</span></div>
                 <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + G</span><span class="shortcut-desc">Open GIF picker</span></div>

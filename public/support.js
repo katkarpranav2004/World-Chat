@@ -117,9 +117,30 @@ async function fetchAndDisplayGifs(query = "") {
         if (data.data && data.data.length > 0) {
             data.data.forEach((gif) => {
                 const img = document.createElement("img");
-                img.src = gif.images.fixed_height_small.url;
+
+                // --- PERFORMANCE OPTIMIZATION ---
+                // 1. Store both static and animated URLs.
+                const staticSrc = gif.images.fixed_height_small_still.url;
+                const animatedSrc = gif.images.fixed_height_small.url;
+
+                // 2. Load the small, static image by default to make the panel load fast.
+                img.src = staticSrc;
+                
                 img.alt = gif.title || "GIF";
-                img.classList.add('gif-item'); // Add class for styling
+                img.classList.add('gif-item');
+
+                // 3. Animate the GIF only when the user hovers over it.
+                img.addEventListener('mouseover', () => {
+                    if (img.src !== animatedSrc) {
+                        img.src = animatedSrc;
+                    }
+                });
+                img.addEventListener('mouseout', () => {
+                    if (img.src !== staticSrc) {
+                        img.src = staticSrc;
+                    }
+                });
+
                 img.addEventListener("click", () => {
                     // Use the globally available function from client.js
                     if (window.sendContent) {
@@ -129,7 +150,8 @@ async function fetchAndDisplayGifs(query = "") {
                             alt: gif.title
                         });
                     }
-                    gifPickerElement.style.display = 'none'; // Hide picker
+                    // FIX: Use the class-based system to hide the picker, not an inline style.
+                    gifPickerElement.classList.remove('visible');
                 });
                 gifResultsContainer.appendChild(img);
             });

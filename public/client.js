@@ -13,19 +13,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const AI_ACTION_PREFIX = '@ai';
     const IS_MOBILE = /Mobi|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
     const IS_MAC = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
-    const MOD_KEY = IS_MAC ? 'meta' : 'ctrl'; // 'meta' for Command key on Mac, 'ctrl' for others
-    const MOD_SYMBOL = IS_MAC ? '⌘' : 'Ctrl';
 
-    // Centralized keyboard shortcut definitions for maintainability.
-    const SHORTCUTS = {
-        AI_TOGGLE: `${MOD_KEY}+/`,
-        EMOJI_PICKER: `${MOD_KEY}+e`,
-        GIF_PICKER: `${MOD_KEY}+g`,
-        SEND_MESSAGE: `${MOD_KEY}+enter`,
-        FOCUS_INPUT: `${MOD_KEY}+i`,
-        HELP: 'f1',
-        AI_TRIGGER: IS_MAC ? 'ctrl+a' : 'alt+a'
+    // --- Centralized Keyboard Shortcut Definitions ---
+    // Storing shortcuts by platform for better organization and maintainability.
+    const SHORTCUTS_CONFIG = {
+        common: {
+            HELP: { key: 'f1', display: 'F1' },
+            ENTER: { key: 'enter', display: 'Enter' },
+            ESC: { key: 'escape', display: 'Esc' }
+        },
+        mac: {
+            AI_TRIGGER: { key: 'alt+a', display: '⌥ + A' }, // CORRECTED: Use Option (alt) key
+            AI_TOGGLE: { key: 'meta+/', display: '⌘ + /' },
+            EMOJI_PICKER: { key: 'meta+e', display: '⌘ + E' },
+            GIF_PICKER: { key: 'meta+g', display: '⌘ + G' },
+            SEND_MESSAGE: { key: 'meta+enter', display: '⌘ + Enter' },
+            FOCUS_INPUT: { key: 'meta+i', display: '⌘ + I' },
+        },
+        windows: {
+            AI_TRIGGER: { key: 'alt+a', display: 'Alt + A' },
+            AI_TOGGLE: { key: 'alt+/', display: 'Alt + /' }, // Changed from Ctrl+/
+            EMOJI_PICKER: { key: 'ctrl+e', display: 'Ctrl + E' },
+            GIF_PICKER: { key: 'ctrl+g', display: 'Ctrl + G' },
+            SEND_MESSAGE: { key: 'ctrl+enter', display: 'Ctrl + Enter' },
+            FOCUS_INPUT: { key: 'ctrl+i', display: 'Ctrl + I' },
+        }
     };
+
+    // Merge the common and platform-specific configs to create the final, active shortcuts object.
+    const platformShortcuts = IS_MAC ? SHORTCUTS_CONFIG.mac : SHORTCUTS_CONFIG.windows;
+    const ACTIVE_SHORTCUTS = { ...SHORTCUTS_CONFIG.common, ...platformShortcuts };
+
 
     // ===================================================================================
     // --- DOM ELEMENT SELECTION ---
@@ -196,7 +214,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateStatusHints() {
         const hints = [];
         if (inputField.value.trim().startsWith(AI_ACTION_PREFIX)) {
-            hints.push(`${MOD_SYMBOL}+/ to toggle AI mode`);
+            // CORRECTED: Use the dynamic display value from the active shortcuts config
+            hints.push(`${ACTIVE_SHORTCUTS.AI_TOGGLE.display} to toggle AI mode`);
         }
         
         if (hints.length === 0) {
@@ -245,7 +264,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function createHelpOverlay() {
         const overlay = document.createElement('div');
         overlay.id = 'shortcut-help-overlay';
-        const AI_TRIGGER_TEXT = IS_MAC ? 'Ctrl + A' : 'Alt + A';
 
         const mobileHelpContent = `
             <div class="help-header">
@@ -263,18 +281,26 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="help-footer"><small>💡 Tip: Tap outside this box to close it</small></div>
         `;
 
+        // Dynamically generate the help content from the active shortcuts configuration.
         const desktopHelpContent = `
             <div class="help-header"><h3>⌨️ Keyboard Shortcuts</h3><button class="help-close" aria-label="Close help">✕</button></div>
             <div class="help-grid">
-                <div class="shortcut-item" data-shortcut="AI_TRIGGER"><span class="shortcut-key">${AI_TRIGGER_TEXT}</span><span class="shortcut-desc">Toggle AI mode</span></div>
-                <div class="shortcut-item" data-shortcut="AI_TOGGLE"><span class="shortcut-key">${MOD_SYMBOL} + /</span><span class="shortcut-desc">Toggle Public/Private AI mode</span></div>
-                <div class="shortcut-item" data-shortcut="EMOJI_PICKER"><span class="shortcut-key">${MOD_SYMBOL} + E</span><span class="shortcut-desc">Open emoji picker</span></div>
-                <div class="shortcut-item" data-shortcut="GIF_PICKER"><span class="shortcut-key">${MOD_SYMBOL} + G</span><span class="shortcut-desc">Open GIF picker</span></div>
-                <div class="shortcut-item" data-shortcut="SEND_MESSAGE"><span class="shortcut-key">${MOD_SYMBOL} + Enter</span><span class="shortcut-desc">Send message</span></div>
-                <div class="shortcut-item" data-shortcut="FOCUS_INPUT"><span class="shortcut-key">${MOD_SYMBOL} + I</span><span class="shortcut-desc">Focus message input</span></div>
-                <div class="shortcut-item" data-shortcut="HELP"><span class="shortcut-key">F1</span><span class="shortcut-desc">Show/hide help (may require Fn key)</span></div>
-                <div class="shortcut-item" data-shortcut="ENTER"><span class="shortcut-key">Enter</span><span class="shortcut-desc">Send message (when input focused)</span></div>
-                <div class="shortcut-item" data-shortcut="ESC"><span class="shortcut-key">Esc</span><span class="shortcut-desc">Close pickers/dialogs</span></div>
+                ${Object.entries(ACTIVE_SHORTCUTS).map(([name, { display }]) => `
+                    <div class="shortcut-item" data-shortcut="${name}">
+                        <span class="shortcut-key">${display}</span>
+                        <span class="shortcut-desc">${{
+                            AI_TRIGGER: 'Toggle AI mode',
+                            AI_TOGGLE: 'Toggle Public/Private AI mode',
+                            EMOJI_PICKER: 'Open emoji picker',
+                            GIF_PICKER: 'Open GIF picker',
+                            SEND_MESSAGE: 'Send message',
+                            FOCUS_INPUT: 'Focus message input',
+                            HELP: 'Show/hide help (may require Fn key)',
+                            ENTER: 'Send message (when input focused)',
+                            ESC: 'Close pickers/dialogs'
+                        }[name] || ''}</span>
+                    </div>
+                `).join('')}
             </div>
             <div class="help-footer"><small>💡 Tip: Shortcuts work from anywhere in the chat</small></div>
         `;
@@ -304,12 +330,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Simulate a keydown event to trigger the action via the global handler.
                 // This avoids duplicating logic and keeps behavior consistent.
                 const keyMap = {
-                    AI_TRIGGER: { key: 'a', [IS_MAC ? 'ctrlKey' : 'altKey']: true },
-                    AI_TOGGLE: { key: '/', [MOD_KEY + 'Key']: true },
-                    EMOJI_PICKER: { key: 'e', [MOD_KEY + 'Key']: true },
-                    GIF_PICKER: { key: 'g', [MOD_KEY + 'Key']: true },
-                    SEND_MESSAGE: { key: 'Enter', [MOD_KEY + 'Key']: true },
-                    FOCUS_INPUT: { key: 'i', [MOD_KEY + 'Key']: true },
+                    AI_TRIGGER: { key: 'a', altKey: true }, // CORRECTED: Use altKey for both platforms
+                    AI_TOGGLE: { key: '/', [IS_MAC ? 'metaKey' : 'altKey']: true },
+                    EMOJI_PICKER: { key: 'e', [IS_MAC ? 'metaKey' : 'ctrlKey']: true },
+                    GIF_PICKER: { key: 'g', [IS_MAC ? 'metaKey' : 'ctrlKey']: true },
+                    SEND_MESSAGE: { key: 'Enter', [IS_MAC ? 'metaKey' : 'ctrlKey']: true },
+                    FOCUS_INPUT: { key: 'i', [IS_MAC ? 'metaKey' : 'ctrlKey']: true },
                     HELP: { key: 'F1' },
                     ENTER: { key: 'Enter' },
                     ESC: { key: 'Escape' }
@@ -405,16 +431,16 @@ document.addEventListener('DOMContentLoaded', () => {
             else document.dispatchEvent(new CustomEvent('close-all-pickers'));
             return;
         }
-        if (matchesShortcut(e, SHORTCUTS.HELP)) {
+        if (matchesShortcut(e, ACTIVE_SHORTCUTS.HELP.key)) {
             e.preventDefault();
             if (helpOverlayVisible) hideHelpOverlay(); else showHelpOverlay();
-        } else if (matchesShortcut(e, SHORTCUTS.AI_TOGGLE)) {
+        } else if (matchesShortcut(e, ACTIVE_SHORTCUTS.AI_TOGGLE.key)) {
             e.preventDefault();
             if (aiToggleContainer.style.display === 'flex') {
                 aiPublicToggle.checked = !aiPublicToggle.checked;
                 showTooltip('AI mode: ' + (aiPublicToggle.checked ? 'Public' : 'Private'));
             }
-        } else if (matchesShortcut(e, SHORTCUTS.AI_TRIGGER)) {
+        } else if (matchesShortcut(e, ACTIVE_SHORTCUTS.AI_TRIGGER.key)) {
             e.preventDefault();
             if (inputField.value.trim().startsWith(AI_ACTION_PREFIX)) {
                 inputField.value = inputField.value.substring(AI_ACTION_PREFIX.length).trimStart();
@@ -425,21 +451,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             inputField.focus();
             inputField.dispatchEvent(new Event('input', { bubbles: true }));
-        } else if (matchesShortcut(e, SHORTCUTS.EMOJI_PICKER)) {
+        } else if (matchesShortcut(e, ACTIVE_SHORTCUTS.EMOJI_PICKER.key)) {
             e.preventDefault();
             document.getElementById('emoji-button')?.click();
             showTooltip('Emoji picker opened');
-        } else if (matchesShortcut(e, SHORTCUTS.GIF_PICKER)) {
+        } else if (matchesShortcut(e, ACTIVE_SHORTCUTS.GIF_PICKER.key)) {
             e.preventDefault();
             document.getElementById('gif-button')?.click();
             showTooltip('GIF picker opened');
-        } else if (matchesShortcut(e, SHORTCUTS.SEND_MESSAGE)) {
+        } else if (matchesShortcut(e, ACTIVE_SHORTCUTS.SEND_MESSAGE.key)) {
             e.preventDefault();
             if (inputField.value.trim()) {
                 handleMessageSend();
                 showTooltip('Message sent');
             }
-        } else if (matchesShortcut(e, SHORTCUTS.FOCUS_INPUT)) {
+        } else if (matchesShortcut(e, ACTIVE_SHORTCUTS.FOCUS_INPUT.key)) {
             e.preventDefault();
             inputField.focus();
             showTooltip('Input focused');

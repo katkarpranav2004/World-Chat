@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + G</span><span class="shortcut-desc">Open GIF picker</span></div>
                 <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + Enter</span><span class="shortcut-desc">Send message</span></div>
                 <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + I</span><span class="shortcut-desc">Focus message input</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">F1</span><span class="shortcut-desc">Show/hide this help</span></div>
+                <div class="shortcut-item"><span class="shortcut-key">F1</span><span class="shortcut-desc">Show/hide help (may require Fn key)</span></div>
                 <div class="shortcut-item"><span class="shortcut-key">Enter</span><span class="shortcut-desc">Send message (when input focused)</span></div>
                 <div class="shortcut-item"><span class="shortcut-key">Esc</span><span class="shortcut-desc">Close pickers/dialogs</span></div>
             </div>
@@ -161,8 +161,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const target = e.target;
         const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
         if (isInput && !e.ctrlKey && !e.altKey && !e.metaKey) {
-            // Allow specific non-modifier keys like 'Escape' and 'Enter' to pass through.
-            if (e.key !== 'Escape' && e.key !== 'Enter') {
+            // Allow specific non-modifier keys like 'Escape', 'Enter', and 'F1' to pass through.
+            if (e.key.toLowerCase() !== 'escape' && e.key.toLowerCase() !== 'enter' && e.key.toLowerCase() !== 'f1') {
                 return;
             }
         }
@@ -265,7 +265,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         
         if (hints.length === 0) {
-            hints.push(IS_MOBILE ? 'Tap the ? for help' : `F1 for shortcuts`);
+            hints.push(IS_MOBILE ? 'Tap the ? for help' : `F1 (or Fn+F1) for shortcuts`);
         }
 
         // Update connection status with hints when idle
@@ -523,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.addEventListener('touchend', focusOnFirstTap);
         } else {
             // Set desktop placeholder dynamically
-            inputField.placeholder = `Type your message... (F1 for shortcuts)`;
+            inputField.placeholder = `Type your message... (F1 or Fn+F1 for shortcuts)`;
 
             // Reinforce focus after full load & after a short delay (handles late scripts stealing focus)
             if (document.activeElement !== inputField) inputField.focus();
@@ -533,7 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         setTimeout(() => {
-            const hintMessage = IS_MOBILE ? 'Tap the ? for help' : `Press F1 for keyboard shortcuts`;
+            const hintMessage = IS_MOBILE ? 'Tap the ? for help' : `Press F1 (or Fn+F1) for keyboard shortcuts`;
             showTooltip(hintMessage, 4000);
         }, 3000);
     });

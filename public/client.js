@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ESC: { key: 'escape', display: 'Esc' }
         },
         mac: {
-            AI_TRIGGER: { key: 'ctrl+alt+a', display: '⌃ + ⌥ + A' }, // CORRECTED: Non-conflicting Mac shortcut
+            AI_TRIGGER: { key: 'alt+a', display: '⌥ + A' }, // OVERRIDE: Use Option+A for AI Trigger
             AI_TOGGLE: { key: 'meta+/', display: '⌘ + /' },
             EMOJI_PICKER: { key: 'meta+e', display: '⌘ + E' },
             GIF_PICKER: { key: 'meta+g', display: '⌘ + G' },
@@ -322,7 +322,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const action = item.dataset.shortcut;
                 // This avoids duplicating logic and keeps behavior consistent.
                 const keyMap = {
-                    AI_TRIGGER: { key: 'a', ctrlKey: true, altKey: true }, // CORRECTED: Match new shortcut
+                    AI_TRIGGER: { key: 'a', altKey: true }, // CORRECTED: Match override
                     AI_TOGGLE: { key: '/', [IS_MAC ? 'metaKey' : 'altKey']: true },
                     EMOJI_PICKER: { key: 'e', [IS_MAC ? 'metaKey' : 'ctrlKey']: true },
                     GIF_PICKER: { key: 'g', [IS_MAC ? 'metaKey' : 'ctrlKey']: true },
@@ -384,11 +384,20 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function matchesShortcut(event, shortcut) {
         const parsed = parseShortcut(shortcut);
+        // Use event.code to check the physical key, not the character produced.
+        // This correctly handles cases like Option+A on Mac, which produces 'å' as event.key.
+        // We format the expected code by capitalizing the key and prefixing with "Key".
+        const expectedCode = parsed.key.length === 1 ? `Key${parsed.key.toUpperCase()}` : parsed.key;
+
+        // For single-key shortcuts like 'F1', event.code is 'F1' and parsed.key is 'f1'.
+        // So we compare them case-insensitively.
+        const codeMatches = event.code.toLowerCase() === expectedCode.toLowerCase();
+
         return event.ctrlKey === parsed.ctrl &&
                event.altKey === parsed.alt &&
                event.shiftKey === parsed.shift &&
                event.metaKey === parsed.meta &&
-               event.key.toLowerCase() === parsed.key;
+               codeMatches;
     }
 
     // ===================================================================================

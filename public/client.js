@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ESC: { key: 'escape', display: 'Esc' }
         },
         mac: {
-            AI_TRIGGER: { key: 'alt+a', display: '⌥ + A' }, // CORRECTED: Use Option (alt) key
+            AI_TRIGGER: { key: 'ctrl+alt+a', display: '⌃ + ⌥ + A' }, // CORRECTED: Non-conflicting Mac shortcut
             AI_TOGGLE: { key: 'meta+/', display: '⌘ + /' },
             EMOJI_PICKER: { key: 'meta+e', display: '⌘ + E' },
             GIF_PICKER: { key: 'meta+g', display: '⌘ + G' },
@@ -317,20 +317,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (helpGrid) {
             helpGrid.addEventListener('click', (e) => {
                 const item = e.target.closest('.shortcut-item');
-                if (!item || !item.dataset.shortcut) return;
+                if (!item) return;
 
                 const action = item.dataset.shortcut;
-                
-                // Stop propagation for picker actions to prevent the global 'click-outside'
-                // listener in support.js from immediately closing the opened panel.
-                if (action === 'EMOJI_PICKER' || action === 'GIF_PICKER') {
-                    e.stopPropagation();
-                }
-
-                // Simulate a keydown event to trigger the action via the global handler.
                 // This avoids duplicating logic and keeps behavior consistent.
                 const keyMap = {
-                    AI_TRIGGER: { key: 'a', altKey: true }, // CORRECTED: Use altKey for both platforms
+                    AI_TRIGGER: { key: 'a', ctrlKey: true, altKey: true }, // CORRECTED: Match new shortcut
                     AI_TOGGLE: { key: '/', [IS_MAC ? 'metaKey' : 'altKey']: true },
                     EMOJI_PICKER: { key: 'e', [IS_MAC ? 'metaKey' : 'ctrlKey']: true },
                     GIF_PICKER: { key: 'g', [IS_MAC ? 'metaKey' : 'ctrlKey']: true },

@@ -81,15 +81,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 <button class="help-close" aria-label="Close help">✕</button>
             </div>
             <div class="help-grid">
-                <div class="shortcut-item"><span class="shortcut-key">${AI_TRIGGER_TEXT}</span><span class="shortcut-desc">Toggle AI mode</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + /</span><span class="shortcut-desc">Toggle Public/Private AI mode</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + E</span><span class="shortcut-desc">Open emoji picker</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + G</span><span class="shortcut-desc">Open GIF picker</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + Enter</span><span class="shortcut-desc">Send message</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">${MOD_SYMBOL} + I</span><span class="shortcut-desc">Focus message input</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">F1</span><span class="shortcut-desc">Show/hide help (may require Fn key)</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">Enter</span><span class="shortcut-desc">Send message (when input focused)</span></div>
-                <div class="shortcut-item"><span class="shortcut-key">Esc</span><span class="shortcut-desc">Close pickers/dialogs</span></div>
+                <div class="shortcut-item" data-shortcut="AI_TRIGGER"><span class="shortcut-key">${AI_TRIGGER_TEXT}</span><span class="shortcut-desc">Toggle AI mode</span></div>
+                <div class="shortcut-item" data-shortcut="AI_TOGGLE"><span class="shortcut-key">${MOD_SYMBOL} + /</span><span class="shortcut-desc">Toggle Public/Private AI mode</span></div>
+                <div class="shortcut-item" data-shortcut="EMOJI_PICKER"><span class="shortcut-key">${MOD_SYMBOL} + E</span><span class="shortcut-desc">Open emoji picker</span></div>
+                <div class="shortcut-item" data-shortcut="GIF_PICKER"><span class="shortcut-key">${MOD_SYMBOL} + G</span><span class="shortcut-desc">Open GIF picker</span></div>
+                <div class="shortcut-item" data-shortcut="SEND_MESSAGE"><span class="shortcut-key">${MOD_SYMBOL} + Enter</span><span class="shortcut-desc">Send message</span></div>
+                <div class="shortcut-item" data-shortcut="FOCUS_INPUT"><span class="shortcut-key">${MOD_SYMBOL} + I</span><span class="shortcut-desc">Focus message input</span></div>
+                <div class="shortcut-item" data-shortcut="HELP"><span class="shortcut-key">F1</span><span class="shortcut-desc">Show/hide help (may require Fn key)</span></div>
+                <div class="shortcut-item" data-shortcut="ENTER"><span class="shortcut-key">Enter</span><span class="shortcut-desc">Send message (when input focused)</span></div>
+                <div class="shortcut-item" data-shortcut="ESC"><span class="shortcut-key">Esc</span><span class="shortcut-desc">Close pickers/dialogs</span></div>
             </div>
             <div class="help-footer"><small>💡 Tip: Shortcuts work from anywhere in the chat</small></div>
         `;
@@ -105,6 +105,61 @@ document.addEventListener('DOMContentLoaded', () => {
         overlay.addEventListener('click', (e) => {
             if (e.target === overlay) hideHelpOverlay();
         });
+
+        // --- NEW: Make help grid interactive ---
+        const helpGrid = overlay.querySelector('.help-grid');
+        if (helpGrid) {
+            helpGrid.addEventListener('click', (e) => {
+                const item = e.target.closest('.shortcut-item');
+                if (!item) return;
+
+                const action = item.dataset.shortcut;
+                if (!action) return;
+
+                // Perform action based on the clicked shortcut
+                switch (action) {
+                    case 'AI_TRIGGER':
+                        if (inputField.value.trim().startsWith(AI_ACTION_PREFIX)) {
+                            inputField.value = inputField.value.substring(AI_ACTION_PREFIX.length).trimStart();
+                            showTooltip('AI mode deactivated');
+                        } else {
+                            inputField.value = AI_ACTION_PREFIX + ' ' + inputField.value;
+                            showTooltip('AI mode activated');
+                        }
+                        inputField.focus();
+                        inputField.dispatchEvent(new Event('input', { bubbles: true }));
+                        break;
+                    case 'AI_TOGGLE':
+                        if (aiToggleContainer.style.display === 'flex') {
+                            aiPublicToggle.checked = !aiPublicToggle.checked;
+                            showTooltip('AI mode: ' + (aiPublicToggle.checked ? 'Public' : 'Private'));
+                        }
+                        break;
+                    case 'EMOJI_PICKER':
+                        document.getElementById('emoji-button')?.click();
+                        break;
+                    case 'GIF_PICKER':
+                        document.getElementById('gif-button')?.click();
+                        break;
+                    case 'FOCUS_INPUT':
+                        inputField.focus();
+                        break;
+                    case 'SEND_MESSAGE':
+                    case 'ENTER':
+                        handleMessageSend();
+                        break;
+                    // For HELP and ESC, the default action is to close the overlay.
+                    case 'HELP':
+                    case 'ESC':
+                        break;
+                }
+
+                // Close the help overlay after performing an action (unless opening another picker)
+                if (action !== 'EMOJI_PICKER' && action !== 'GIF_PICKER') {
+                    hideHelpOverlay();
+                }
+            });
+        }
 
         return overlay;
     }

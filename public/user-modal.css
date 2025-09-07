@@ -1,0 +1,168 @@
+/**
+ * @file user-modal.css
+ * @description Styles for the initial user registration modal.
+ */
+
+/* --- NEW: Keyframe animation for modal entrance --- */
+@keyframes modalOpen {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+#registration-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    color: var(--text-color); /* Use main text color from styling.css */
+    display: none; /* Hidden by default */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    font-family: 'Consolas', 'Monaco', monospace;
+    -webkit-backdrop-filter: blur(8px); /* For Safari support */
+    backdrop-filter: blur(8px); /* Increased blur for a smoother look */
+}
+
+.modal-content {
+    background-color: rgba(42, 36, 56, 0.608); /* Use main background color */
+    border: 1px solid var(--border-color); /* Use main border color */
+    padding: 2rem 3rem;
+    text-align: center;
+    width: 90%;
+    max-width: 500px;
+    /* Use the tertiary color for a thematic glow */
+    box-shadow: 0 0 25px rgba(255, 209, 102, 0.25);
+    border-radius: 10px; /* Match terminal border-radius */
+    animation: modalOpen 0.4s cubic-bezier(0.2, 0.8, 0.2, 1); /* Use new animation */
+}
+
+.modal-content h2 {
+    font-size: 2.2rem;
+    margin-bottom: 1rem;
+    letter-spacing: 2px;
+    color: var(--text-color); /* Ensure header uses main text color */
+    text-shadow: 0 0 5px var(--tertiary-color); /* Add a subtle glow */
+}
+
+.modal-content p {
+    font-size: 1.1rem;
+    margin-bottom: 1.5rem;
+    opacity: 0.9; /* Slightly more opaque for readability */
+    color: var(--text-color);
+}
+
+.input-group {
+    margin-bottom: 1.5rem;
+}
+
+#name-input-modal {
+    width: 100%;
+    padding: 0.75rem;
+    background-color: rgba(0, 0, 0, 0.3); /* Darker, less saturated background */
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 1.2rem;
+    text-align: center;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+}
+
+#name-input-modal:focus {
+    outline: none;
+    border-color: var(--tertiary-color); /* Highlight with theme color */
+    background-color: rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 10px rgba(255, 209, 102, 0.5); /* Glow effect on focus */
+}
+
+/* --- Styles for the unique name display --- */
+#unique-name-display {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    padding: 0.75rem;
+    font-size: 1.2rem;
+    margin-top: 1rem;
+    border-radius: 6px;
+    word-break: break-all;
+}
+
+#name-base-display {
+    color: var(--text-color);
+    font-weight: bold;
+}
+
+#name-suffix-display {
+    color: var(--tertiary-color); /* Use theme accent for the unique part */
+}
+
+#reroll-button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    margin-left: 0.75rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: transform 0.2s ease;
+    filter: grayscale(50%);
+}
+
+#reroll-button:hover {
+    transform: scale(1.2) rotate(20deg);
+    filter: grayscale(0%);
+}
+
+#username-suggestions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+}
+
+.suggestion-button {
+    background-color: transparent;
+    border: 1px solid #00ff41;
+    color: #00ff41;
+    padding: 0.5rem 1rem;
+    font-family: 'VT323', monospace;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.suggestion-button:hover {
+    background-color: #00ff41;
+    color: #000;
+}
+
+#join-chat-button {
+    background-color: var(--tertiary-color); /* Use theme accent color */
+    color: var(--bg-color); /* Use dark background color for text */
+    border: none;
+    padding: 0.75rem 2rem;
+    font-family: 'VT323', monospace;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 1.5rem;
+    transition: all 0.2s ease;
+    letter-spacing: 1px;
+    border-radius: 6px;
+}
+
+#join-chat-button:hover {
+    box-shadow: 0 0 15px var(--hover-glow-color);
+    transform: scale(1.05);
+}

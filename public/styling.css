@@ -245,10 +245,11 @@ body::before {
 
 /* --- MODERNIZED MESSAGE STYLES --- */
 .message {
-    margin-bottom: 2px; /* Reduced margin for tighter packing */
+    margin-bottom: 12px; /* Increased margin for spacing between different senders */
     opacity: 0;
     animation: fadeIn 0.4s forwards ease-out;
     display: flex;
+    flex-direction: column; /* Stack sender name and bubble vertically */
     max-width: 85%;
 }
 @keyframes fadeIn { to { opacity: 1; } }
@@ -258,11 +259,21 @@ body::before {
 
 .message.sent {
     margin-left: auto;
-    justify-content: flex-end;
+    align-items: flex-end; /* Align bubble to the right */
 }
 .message.received {
     margin-right: auto;
-    justify-content: flex-start;
+    align-items: flex-start; /* Align bubble to the left */
+}
+
+/* NEW: Style for the sender's name */
+.message-sender {
+    font-size: 0.8em;
+    color: var(--tertiary-color); /* Use the highlight color for the name */
+    margin-bottom: 4px; /* Space between name and bubble */
+    margin-left: 12px; /* Align with the bubble's padding */
+    font-weight: bold;
+    text-shadow: 0 0 5px var(--hover-glow-color); /* Add a subtle glow */
 }
 
 /* NEW: The main message bubble container */

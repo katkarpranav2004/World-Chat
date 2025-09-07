@@ -77,7 +77,7 @@ if (emojiButton && emojiPickerElement) {
                     return response.json();
                 },
                 parent: emojiPickerElement,
-                theme: 'light',
+                theme: 'dark',
                 onEmojiSelect: (emoji) => {
                     if (messageInputField) {
                         messageInputField.value += emoji.native;

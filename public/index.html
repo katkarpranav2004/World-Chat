@@ -31,9 +31,32 @@
     <link rel="stylesheet" href="./styling.css" />
     <!-- Link to the separate stylesheet for the toggle switch -->
     <link rel="stylesheet" href="./toggle-switch.css" />
+    <!-- NEW: Styles for the user registration modal -->
+    <link rel="stylesheet" href="./user-modal.css" />
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   </head>
   <body>
+    <!-- NEW: User Registration Modal -->
+    <div id="registration-modal">
+        <div class="modal-content">
+            <p>Enter your desired name to generate a unique handle.</p>
+            <div class="input-group">
+                <input type="text" id="name-input-modal" placeholder="Enter your name..." autocomplete="off" maxlength="20">
+            </div>
+            
+            <p>Your unique handle will be:</p>
+            <div id="unique-name-display">
+                <span id="name-base-display">YourName</span><span id="name-suffix-display">-RandomWord</span>
+                <button id="reroll-button" title="Get a new unique word">🎲</button>
+            </div>
+
+            <form id="join-form">
+                <input type="hidden" id="final-name">
+                <button type="button" id="join-chat-button">Join Chat</button>
+            </form>
+        </div>
+    </div>
+
     <!-- NEW: Debug overlay for mobile view -->
     <!-- <div id="debug-overlay"></div> -->
 
@@ -137,6 +160,8 @@
     </div>
 
     <!-- Application Scripts -->
+    <!-- NEW: User script must run first to establish identity -->
+    <script src="user.js" defer></script>
     <script src="client.js" defer></script>
     <script src="support.js" defer></script>
   </body>

@@ -68,6 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- STATE MANAGEMENT ---
     // ===================================================================================
 
+    // --- NEW: User identity state ---
+    let currentUser = { id: null, name: 'Anonymous' };
+
     let helpOverlayVisible = false;
     // --- NEW: Centralized Notification State ---
     let persistentStatus = { text: 'Welcome!', statusClass: 'connecting' };
@@ -98,19 +101,72 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===================================================================================
 
     /**
-     * Handles mobile viewport resizing, especially for the on-screen keyboard.
-     * Sets a CSS custom property `--app-height` to the visible viewport height.
-     * This allows the CSS to create a layout that adapts to the keyboard.
+     * @description Main initialization function.
+     * Sets up all event listeners and establishes the socket connection.
+     * This function is now called only after a user identity is confirmed.
      */
-    function handleMobileViewport() {
-        if (!IS_MOBILE || !window.visualViewport) return;
+    function initializeChat() {
+        // --- NEW: Send user data on connection ---
+        socket.auth = { user: currentUser };
+        socket.connect();
 
-        const setAppHeight = () => {
-            document.documentElement.style.setProperty('--app-height', `${window.visualViewport.height}px`);
-        };
+        setupDOMListeners();
+        let hintText = IS_MOBILE ? 'Tap the ? for help' : `F1 (or Fn+F1) for shortcuts`;
+        showNotification(` Welcome, ${currentUser.name}! ${hintText}`, { duration: 4000 });
+        if (IS_MOBILE) {
+            document.body.classList.add('is-mobile');
+        }
+        inputField.focus();
+    }
 
-        window.visualViewport.addEventListener('resize', setAppHeight);
-        setAppHeight(); // Initial call
+    /**
+     * @description Establishes the connection to the Socket.IO server
+     * and registers all event handlers for the socket.
+     */
+    function connectSocket() {
+        socket.on("connect", () => {
+            updateConnectionStatus("Connected", "connected");
+            console.log(`Connected to server with ID: ${socket.id}`);
+        });
+        socket.on("disconnect", () => { updateConnectionStatus("Disconnected", "disconnected"); updateUserCount(0); });
+        socket.on("connect_error", (err) => updateConnectionStatus(`Connection failed: ${err.message}`, 'disconnected'));
+        
+        // MODIFIED: Handle full message object
+        socket.on("backend-user-message", (message) => {
+            // Don't display our own messages that we get back from the server
+            if (message.user.id === currentUser.id) return;
+            addMessage(message);
+        });
+
+        socket.on("total-user", (count) => updateUserCount(count));
+
+        socket.on('ai-response', (data) => {
+            const loader = document.querySelector('.ai-loader-message');
+            if (loader) loader.remove();
+
+            if (data.answer) {
+                addMessage({
+                    user: { name: 'Gemini AI' },
+                    text: data.answer,
+                    isHtml: false
+                });
+            } else if (data.error) {
+                addMessage({
+                    user: { name: 'System' },
+                    text: `**AI Error:** ${data.error}`,
+                    isHtml: false
+                });
+            }
+        });
+
+        socket.on('public-ai-message', (data) => {
+            const messageText = `**AI Response to ${data.user.name}:**\n\n> "${data.question}"\n\n${data.answer || data.error}`;
+            addMessage({
+                user: { name: 'Public AI' },
+                text: messageText,
+                isHtml: false
+            });
+        });
     }
 
     /**
@@ -124,36 +180,41 @@ document.addEventListener('DOMContentLoaded', () => {
         const messageContent = inputField.value.trim();
         if (!messageContent) return;
 
+        // --- AI Message Handling ---
         if (messageContent.startsWith(AI_ACTION_PREFIX)) {
             const question = messageContent.substring(AI_ACTION_PREFIX.length).trim();
             if (question) {
                 const isPublic = aiPublicToggle.checked;
-                addMessage(messageContent, true); // Display the user's query locally
+                // Display the user's query locally
+                addMessage({ user: currentUser, text: messageContent });
                 
-                // --- FIX: Use full, correct HTML for the loader animation ---
-                const loaderHtml = `
+                // Display loader
+                 const loaderHtml = `
                     <div class="loader">
                         <span class="bar red"></span><span class="bar orange"></span><span class="bar yellow"></span>
                         <span class="bar green"></span><span class="bar blue"></span><span class="bar violet"></span>
                     </div>`;
-                addMessage(loaderHtml, false, 'ai-loader-message', true);
+                addMessage({
+                    user: { name: 'Gemini AI' }, // Loader is attributed to the AI
+                    text: loaderHtml,
+                    isHtml: true,
+                    isLoader: true
+                });
 
                 socket.emit('ask-ai', { question, isPublic });
             }
+        // --- Regular Message Handling ---
         } else {
-            const messageId = addMessage(messageContent, true);
-            socket.emit("user-message", messageContent, () => {
-                // This callback runs when the server acknowledges the message.
-                const messageEl = document.getElementById(messageId);
-                if (messageEl) {
-                    const statusIndicator = messageEl.querySelector('.message-status');
-                    if (statusIndicator) {
-                        statusIndicator.innerHTML = '✓✓'; // Double check for "sent"
-                        statusIndicator.classList.add('sent');
-                        statusIndicator.title = 'Sent';
-                    }
-                }
-            });
+            const messagePayload = {
+                id: `${socket.id}-${Date.now()}`,
+                user: currentUser,
+                text: messageContent,
+                timestamp: new Date().toISOString()
+            };
+            // Display the message immediately on the sender's screen
+            addMessage(messagePayload);
+            // Emit the message to the server
+            socket.emit('user-message', messagePayload);
         }
 
         // Reset input field and UI state
@@ -168,31 +229,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     /**
      * Creates and appends a new message to the chat window.
-     * @param {string} content - The message content (text or HTML).
-     * @param {boolean} isSentByMe - True if the message is from the current user.
-     * @param {string|null} [id=null] - An optional ID to assign to the message element.
-     * @param {boolean} [isHtml=false] - True if the content is HTML and should not be parsed as Markdown.
-     * @returns {string} The ID of the created message element.
+     * @param {object} message - The message object.
+     * @param {object} message.user - The user who sent the message {id, name}.
+     * @param {string} message.text - The message content (text or HTML).
+     * @param {string} [message.timestamp] - The ISO timestamp.
+     * @param {boolean} [message.isHtml=false] - True if content is HTML.
+     * @param {boolean} [message.isLoader=false] - True if this is a loader message.
      */
-    function addMessage(content, isSentByMe, id = null, isHtml = false) {
+    function addMessage(message) {
         if (!chatMessages) return;
 
-        const timestamp = new Date().toISOString();
+        const { user, text, timestamp = new Date().toISOString(), isHtml = false, isLoader = false } = message;
+        const isSentByMe = user.id === currentUser.id;
+
         const messageEl = document.createElement("div");
-        
-        // --- FIX: Removed special 'loader-message' class. The loader will now be treated
-        // like any other received message for consistent styling and positioning.
         messageEl.classList.add("message", isSentByMe ? "sent" : "received");
+        if (isLoader) messageEl.classList.add('ai-loader-message');
         
         messageEl.dataset.timestamp = timestamp;
         
-        if (id) {
-            messageEl.id = id;
-        } else if (isSentByMe) {
-            messageEl.id = `msg-${Date.now()}`;
+        // --- Create Sender Name Element (for received messages) ---
+        if (!isSentByMe) {
+            const senderEl = document.createElement('div');
+            senderEl.classList.add('message-sender');
+            senderEl.textContent = user.name;
+            messageEl.appendChild(senderEl);
         }
 
-        // --- FIX: The loader is no longer a special case. This logic now applies to ALL messages. ---
         const bubbleEl = document.createElement("div");
         bubbleEl.classList.add("message-bubble");
 
@@ -200,9 +263,9 @@ document.addEventListener('DOMContentLoaded', () => {
         messageContentEl.classList.add("message-content");
 
         if (isHtml) {
-            messageContentEl.innerHTML = DOMPurify.sanitize(content, { USE_PROFILES: { html: true } });
+            messageContentEl.innerHTML = DOMPurify.sanitize(text, { USE_PROFILES: { html: true } });
         } else {
-            const formattedContent = DOMPurify.sanitize(marked.parse(content), { USE_PROFILES: { html: true } });
+            const formattedContent = DOMPurify.sanitize(marked.parse(text), { USE_PROFILES: { html: true } });
             messageContentEl.innerHTML = formattedContent;
         }
 
@@ -214,22 +277,12 @@ document.addEventListener('DOMContentLoaded', () => {
         timestampEl.textContent = formatTimestamp(timestamp);
         metaEl.appendChild(timestampEl);
 
-        // Add status indicator (checkmark) only to user-sent text messages.
-        if (isSentByMe && !isHtml && !content.trim().startsWith(AI_ACTION_PREFIX)) {
-            const statusIndicator = document.createElement('span');
-            statusIndicator.classList.add('message-status');
-            statusIndicator.innerHTML = '✓'; // Single check for "sending"
-            statusIndicator.title = 'Sending...';
-            metaEl.appendChild(statusIndicator);
-        }
-
         bubbleEl.appendChild(messageContentEl);
         bubbleEl.appendChild(metaEl);
         messageEl.appendChild(bubbleEl);
 
         chatMessages.appendChild(messageEl);
         scrollToBottom();
-        return messageEl.id;
     }
 
     /**
@@ -613,7 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Listen for local event to display sent GIFs/emojis immediately.
     document.addEventListener('local-message-sent', (e) => {
-        addMessage(e.detail.html, true, null, true);
+        addMessage(e.detail.message);
     });
 
     // Standard UI event listeners
@@ -686,30 +739,40 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     socket.on("disconnect", () => { updateConnectionStatus("Disconnected", "disconnected"); updateUserCount(0); });
     socket.on("connect_error", (err) => updateConnectionStatus(`Connection failed`, 'disconnected'));
-    socket.on("backend-user-message", (message, id) => { if (socket.id !== id) addMessage(message, false, id, message.trim().startsWith('<img')); });
+    socket.on("backend-user-message", (message) => {
+        // Don't display our own messages that we get back from the server
+        if (message.user.id === currentUser.id) return;
+        addMessage(message);
+    });
     socket.on("total-user", (count) => updateUserCount(count));
 
     // --- FIXED: Implemented AI response handlers ---
     socket.on('ai-response', (data) => {
-        // This event is for the user who asked the question.
-        const loader = document.getElementById('ai-loader-message');
-        if (loader) {
-            loader.remove();
-        }
+        const loader = document.querySelector('.ai-loader-message');
+        if (loader) loader.remove();
 
         if (data.answer) {
-            // Add the AI's answer, rendering it as Markdown.
-            addMessage(data.answer, false, null, false);
+            addMessage({
+                user: { name: 'Gemini AI' },
+                text: data.answer,
+                isHtml: false
+            });
         } else if (data.error) {
-            // Display an error message if something went wrong.
-            addMessage(`**AI Error:** ${data.error}`, false, null, false);
+            addMessage({
+                user: { name: 'System' },
+                text: `**AI Error:** ${data.error}`,
+                isHtml: false
+            });
         }
     });
 
     socket.on('public-ai-message', (data) => {
-        // This event is for everyone else to see a public AI interaction.
-        const messageContent = `**Public AI Query:** "${data.question}"\n\n**AI Response:** ${data.answer || data.error}`;
-        addMessage(messageContent, false, `ai-public-${Date.now()}`, false);
+        const messageText = `**AI Response to ${data.user.name}:**\n\n> "${data.question}"\n\n${data.answer || data.error}`;
+        addMessage({
+            user: { name: 'Public AI' },
+            text: messageText,
+            isHtml: false
+        });
     });
 
 
@@ -717,7 +780,59 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- INITIALIZATION ---
     // ===================================================================================
 
-    // Use window.addEventListener('load', ...) for reliability, ensuring all assets are loaded.
+    /**
+     * Sets up all the DOM event listeners for the application.
+     * This is called once the user identity is ready.
+     */
+    function setupDOMListeners() {
+        // Listen for local event to display sent GIFs/emojis immediately.
+        document.addEventListener('local-message-sent', (e) => {
+            addMessage(e.detail.message);
+        });
+
+        // Standard UI event listeners
+        if (disconnectBtn) disconnectBtn.addEventListener("click", () => socket.connected ? socket.disconnect() : socket.connect());
+        if (helpButtonMobile) helpButtonMobile.addEventListener('click', (e) => { e.preventDefault(); if (helpOverlayVisible) hideHelpOverlay(); else showHelpOverlay(); });
+        
+        // Input field event handling
+        if (sendButton && inputField) {
+            sendButton.addEventListener("click", handleMessageSend);
+
+            inputField.addEventListener('input', () => {
+                inputField.style.height = 'auto';
+                inputField.style.height = `${inputField.scrollHeight}px`;
+            });
+
+            inputField.addEventListener("keydown", (e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleMessageSend();
+                }
+            });
+        }
+
+        if (inputField && aiToggleContainer) {
+            inputField.addEventListener('input', () => {
+                const isAiCommand = inputField.value.trim().toLowerCase().startsWith(AI_ACTION_PREFIX);
+                aiToggleContainer.style.display = isAiCommand ? 'flex' : 'none';
+                updateStatusHints();
+            });
+
+            aiPublicToggle.addEventListener('change', () => {
+                userPreferences.set('aiPublic', aiPublicToggle.checked);
+            });
+        }
+        setupHoverNotifications();
+    }
+
+    // --- NEW: Wait for user identity before initializing the chat ---
+    document.addEventListener('userReady', (e) => {
+        currentUser = e.detail;
+        // Now that we have a user, we can initialize the main application.
+        initializeChat();
+    });
+
+    // Use window.addEventListener('load', ...) for reliability
     window.addEventListener('load', () => {
         // --- NEW: Apply saved user preferences on load ---
         aiPublicToggle.checked = userPreferences.get('aiPublic', false);
@@ -759,14 +874,27 @@ window.sendContent = function({ type, content, alt = '' }) {
     if (type === 'emoji') {
         messageInput.value += content;
         messageInput.focus();
+        // Trigger input event to resize textarea if needed
+        messageInput.dispatchEvent(new Event('input', { bubbles: true }));
     } else if (type === 'gif') {
         const socket = window.chatSocket;
         if (socket && socket.connected) {
-            const gifHtml = `<img src="${content}" alt="${alt}" class="gif-message">`;
-            socket.emit('user-message', gifHtml, () => {
-                // Dispatch a local event to have the main client script render the sent GIF immediately.
-                document.dispatchEvent(new CustomEvent('local-message-sent', { detail: { html: gifHtml } }));
-            });
+            const gifHtml = `<img src="${content}" alt="${alt || 'GIF'}" class="gif-message">`;
+            
+            // --- MODIFIED: Use the global currentUser object ---
+            const messagePayload = {
+                id: `${socket.id}-${Date.now()}`,
+                user: currentUser, // Use the established user identity
+                text: gifHtml,
+                timestamp: new Date().toISOString(),
+                isHtml: true
+            };
+            
+            // Dispatch a local event to render the sent GIF immediately.
+            document.dispatchEvent(new CustomEvent('local-message-sent', { detail: { message: messagePayload } }));
+            
+            // Emit the full payload to the server
+            socket.emit('user-message', messagePayload);
         }
     }
 };

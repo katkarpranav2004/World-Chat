@@ -77,7 +77,7 @@ if (emojiButton && emojiPickerElement) {
                     return response.json();
                 },
                 parent: emojiPickerElement,
-                theme: 'dark',
+                theme: 'light',
                 onEmojiSelect: (emoji) => {
                     if (messageInputField) {
                         messageInputField.value += emoji.native;
@@ -98,15 +98,31 @@ if (emojiButton && emojiPickerElement) {
     });
 }
 
-// --- GIF Picker Implementation ---
+// --- GIF Picker IMPLEMENTATION ---
 
 /**
  * Fetches GIFs from the backend API and displays them in the picker.
+ * Implements sessionStorage for caching to improve performance on repeated searches.
  * @param {string} [query=""] - The search query. If empty, fetches trending GIFs.
  */
 async function fetchAndDisplayGifs(query = "") {
     if (!gifResultsContainer) return;
+
+    const performanceStart = performance.now(); // Start performance timer
+    const cacheKey = `gif-cache-${query || 'trending'}`;
+    const cachedGifs = sessionStorage.getItem(cacheKey);
+
     gifResultsContainer.innerHTML = '<p>Loading GIFs...</p>';
+
+    if (cachedGifs) {
+        console.log(`[Cache] Loading GIFs from sessionStorage for query: "${query}"`);
+        const data = JSON.parse(cachedGifs);
+        displayGifs(data);
+        const performanceEnd = performance.now();
+        console.log(`[Perf] Displayed cached GIFs in ${Math.round(performanceEnd - performanceStart)}ms`);
+        return;
+    }
+
     try {
         const response = await fetch(`/api/gifs?query=${encodeURIComponent(query)}`);
         if (!response.ok) {
@@ -114,47 +130,68 @@ async function fetchAndDisplayGifs(query = "") {
             throw new Error(errorData.error || 'Failed to fetch GIFs from server');
         }
         const data = await response.json();
-        gifResultsContainer.innerHTML = "";
-
-        if (data.data && data.data.length > 0) {
-            data.data.forEach((gif) => {
-                const img = document.createElement("img");
-
-                // PERFORMANCE OPTIMIZATION: Load a static preview image first.
-                // The animated version is loaded only on mouse hover. This makes the
-                // GIF panel appear much faster and saves significant bandwidth.
-                const staticSrc = gif.images.fixed_height_small_still.url;
-                const animatedSrc = gif.images.fixed_height_small.url;
-
-                img.src = staticSrc;
-                img.alt = gif.title || "GIF";
-                img.classList.add('gif-item');
-
-                // Event listeners to swap between static and animated sources.
-                img.addEventListener('mouseover', () => { if (img.src !== animatedSrc) img.src = animatedSrc; });
-                img.addEventListener('mouseout', () => { if (img.src !== staticSrc) img.src = staticSrc; });
-
-                // On click, send the full-quality GIF via the global sendContent function.
-                img.addEventListener("click", () => {
-                    if (window.sendContent) {
-                        window.sendContent({
-                            type: 'gif',
-                            content: gif.images.original.url,
-                            alt: gif.title
-                        });
-                    }
-                    gifPickerElement.classList.remove('visible');
-                });
-                gifResultsContainer.appendChild(img);
-            });
-        } else {
-            gifResultsContainer.innerHTML = '<p>No GIFs found.</p>';
+        
+        // Cache the successful response in sessionStorage
+        try {
+            sessionStorage.setItem(cacheKey, JSON.stringify(data));
+        } catch (e) {
+            console.warn("Could not write to sessionStorage. Cache may be full.", e);
+            // Clear older cache items if storage is full
+            sessionStorage.clear(); 
         }
+
+        displayGifs(data);
+        const performanceEnd = performance.now();
+        console.log(`[Perf] Fetched and displayed GIFs in ${Math.round(performanceEnd - performanceStart)}ms`);
+
     } catch (error) {
         console.error("Failed to fetch GIFs:", error);
         gifResultsContainer.innerHTML = `<p>Error: ${error.message}</p>`;
     }
 }
+
+/**
+ * Helper function to render GIF data into the results container.
+ * @param {object} data - The API response data from Giphy.
+ */
+function displayGifs(data) {
+    if (!gifResultsContainer) return;
+    gifResultsContainer.innerHTML = ""; // Clear previous results or loading message
+
+    if (data.data && data.data.length > 0) {
+        const fragment = document.createDocumentFragment(); // Use a fragment for performance
+        data.data.forEach((gif) => {
+            const img = document.createElement("img");
+
+            const staticSrc = gif.images.fixed_height_small_still.url;
+            const animatedSrc = gif.images.fixed_height_small.url;
+
+            img.src = staticSrc;
+            img.alt = gif.title || "GIF";
+            img.classList.add('gif-item');
+            img.loading = 'lazy'; // Modern attribute to defer image loading
+
+            img.addEventListener('mouseover', () => { if (img.src !== animatedSrc) img.src = animatedSrc; });
+            img.addEventListener('mouseout', () => { if (img.src !== staticSrc) img.src = staticSrc; });
+
+            img.addEventListener("click", () => {
+                if (window.sendContent) {
+                    window.sendContent({
+                        type: 'gif',
+                        content: gif.images.original.url,
+                        alt: gif.title
+                    });
+                }
+                if (gifPickerElement) gifPickerElement.classList.remove('visible');
+            });
+            fragment.appendChild(img);
+        });
+        gifResultsContainer.appendChild(fragment); // Append all images at once
+    } else {
+        gifResultsContainer.innerHTML = '<p>No GIFs found.</p>';
+    }
+}
+
 
 if (gifButton && gifPickerElement && gifSearchInput) {
     gifButton.addEventListener("click", (event) => {

@@ -39,6 +39,10 @@ const userPrivateChatSessions = new Map();
 const publicChatModel = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
 const publicChat = publicChatModel.startChat({ history: [] });
 
+// --- NEW: In-memory cache for Giphy API results ---
+const giphyCache = new Map();
+const CACHE_DURATION_MS = 10 * 60 * 1000; // 10 minutes
+
 
 // --- Socket.IO Connection Handling ---
 io.on('connection', (socket) => {
@@ -152,12 +156,29 @@ app.get('/api/gifs', async (req, res) => {
         return res.status(500).json({ error: "Giphy API key is not configured on the server." });
     }
 
+    // --- NEW: Cache key based on query (or 'trending' if no query) ---
+    const cacheKey = query ? query.trim().toLowerCase() : 'trending';
+    const cachedData = giphyCache.get(cacheKey);
+
+    // --- NEW: Check if valid, non-expired data is in the cache ---
+    if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION_MS) {
+        console.log(`[Cache] HIT for Giphy query: "${cacheKey}"`);
+        return res.json(cachedData.data);
+    }
+    console.log(`[Cache] MISS for Giphy query: "${cacheKey}"`);
+
+
     const url = query
         ? `https://api.giphy.com/v1/gifs/search?api_key=${apiKey}&q=${encodeURIComponent(query)}&limit=24&rating=g`
         : `https://api.giphy.com/v1/gifs/trending?api_key=${apiKey}&limit=24&rating=g`;
 
     try {
         const response = await axios.get(url);
+        // --- NEW: Store the new data and a timestamp in the cache ---
+        giphyCache.set(cacheKey, {
+            timestamp: Date.now(),
+            data: response.data
+        });
         res.json(response.data);
     } catch (error) {
         console.error("Giphy API proxy error:", error.message);

@@ -73,6 +73,25 @@ document.addEventListener('DOMContentLoaded', () => {
     let persistentStatus = { text: 'Welcome!', statusClass: 'connecting' };
     let notificationTimeout;
 
+    // --- NEW: Load user preferences from localStorage ---
+    const userPreferences = {
+        get: (key, defaultValue) => {
+            try {
+                const value = localStorage.getItem(key);
+                return value === null ? defaultValue : JSON.parse(value);
+            } catch {
+                return defaultValue;
+            }
+        },
+        set: (key, value) => {
+            try {
+                localStorage.setItem(key, JSON.stringify(value));
+            } catch (e) {
+                console.warn("Could not write to localStorage.", e);
+            }
+        }
+    };
+
 
     // ===================================================================================
     // --- CORE FUNCTIONS & UI LOGIC ---
@@ -99,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function handleMessageSend() {
         if (!inputField || !socket || !socket.connected) {
-            addMessage("You are not connected.", false);
+            addMessage("Lost you mate! Check your Internet connection OwO", false);
             return;
         }
         const messageContent = inputField.value.trim();
@@ -141,7 +160,8 @@ document.addEventListener('DOMContentLoaded', () => {
         inputField.value = "";
         inputField.style.height = 'auto'; // FIX: Reset textarea height after sending
         aiToggleContainer.style.display = 'none';
-        aiPublicToggle.checked = false;
+        // Do not reset the toggle's checked state, let it persist
+        // aiPublicToggle.checked = false; 
         inputField.focus();
         setTimeout(updateStatusHints, 100);
     }
@@ -440,7 +460,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.dispatchEvent(new KeyboardEvent('keydown', { ...keyMap[action], bubbles: true }));
                 }
                 
-                hideHelpOverlay();
+                // --- FIX: Delay hiding the overlay to allow the dispatched event to be processed. ---
+                setTimeout(hideHelpOverlay, 50);
             });
         }
         return overlay;
@@ -555,6 +576,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             if (aiToggleContainer.style.display === 'flex') {
                 aiPublicToggle.checked = !aiPublicToggle.checked;
+                userPreferences.set('aiPublic', aiPublicToggle.checked); // Save preference
                 showNotification('AI mode: ' + (aiPublicToggle.checked ? 'Public' : 'Private'), { duration: 2000 });
             }
         } else if (matchesShortcut(e, ACTIVE_SHORTCUTS.AI_TRIGGER.key)) {
@@ -624,6 +646,11 @@ document.addEventListener('DOMContentLoaded', () => {
             aiToggleContainer.style.display = isAiCommand ? 'flex' : 'none';
             updateStatusHints();
         });
+
+        // --- NEW: Save AI toggle state on change ---
+        aiPublicToggle.addEventListener('change', () => {
+            userPreferences.set('aiPublic', aiPublicToggle.checked);
+        });
     }
 
     // --- NEW: Hover-based notifications ---
@@ -692,6 +719,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Use window.addEventListener('load', ...) for reliability, ensuring all assets are loaded.
     window.addEventListener('load', () => {
+        // --- NEW: Apply saved user preferences on load ---
+        aiPublicToggle.checked = userPreferences.get('aiPublic', false);
+
         showNotification("Welcome to World-Chat! Type '@ai your question' to talk to the AI.", { duration: 4000 });
         
         if (IS_MOBILE) {

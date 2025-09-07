@@ -110,7 +110,15 @@ document.addEventListener('DOMContentLoaded', () => {
             if (question) {
                 const isPublic = aiPublicToggle.checked;
                 addMessage(messageContent, true); // Display the user's query locally
-                addMessage('<div class="loader"><div class="bar red"></div><div class="bar orange"></div><div class="bar yellow"></div><div class="bar green"></div><div class="bar blue"></div><div class="bar violet"></div></div>', false, 'ai-loader-message', true);
+                
+                // --- FIX: Use full, correct HTML for the loader animation ---
+                const loaderHtml = `
+                    <div class="loader">
+                        <span class="bar red"></span><span class="bar orange"></span><span class="bar yellow"></span>
+                        <span class="bar green"></span><span class="bar blue"></span><span class="bar violet"></span>
+                    </div>`;
+                addMessage(loaderHtml, false, 'ai-loader-message', true);
+
                 socket.emit('ask-ai', { question, isPublic });
             }
         } else {
@@ -120,13 +128,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 const messageEl = document.getElementById(messageId);
                 if (messageEl) {
                     const statusIndicator = messageEl.querySelector('.message-status');
-                    if (statusIndicator) statusIndicator.textContent = 'sent';
+                    if (statusIndicator) {
+                        statusIndicator.innerHTML = '✓✓'; // Double check for "sent"
+                        statusIndicator.classList.add('sent');
+                        statusIndicator.title = 'Sent';
+                    }
                 }
             });
         }
 
         // Reset input field and UI state
         inputField.value = "";
+        inputField.style.height = 'auto'; // FIX: Reset textarea height after sending
         aiToggleContainer.style.display = 'none';
         aiPublicToggle.checked = false;
         inputField.focus();
@@ -144,8 +157,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function addMessage(content, isSentByMe, id = null, isHtml = false) {
         if (!chatMessages) return;
 
+        const timestamp = new Date().toISOString();
         const messageEl = document.createElement("div");
+        
+        // --- FIX: Removed special 'loader-message' class. The loader will now be treated
+        // like any other received message for consistent styling and positioning.
         messageEl.classList.add("message", isSentByMe ? "sent" : "received");
+        
+        messageEl.dataset.timestamp = timestamp;
         
         if (id) {
             messageEl.id = id;
@@ -153,27 +172,40 @@ document.addEventListener('DOMContentLoaded', () => {
             messageEl.id = `msg-${Date.now()}`;
         }
 
+        // --- FIX: The loader is no longer a special case. This logic now applies to ALL messages. ---
+        const bubbleEl = document.createElement("div");
+        bubbleEl.classList.add("message-bubble");
+
         const messageContentEl = document.createElement("div");
         messageContentEl.classList.add("message-content");
 
         if (isHtml) {
-            // Sanitize HTML content to prevent XSS attacks before rendering.
             messageContentEl.innerHTML = DOMPurify.sanitize(content, { USE_PROFILES: { html: true } });
         } else {
-            // For plain text, parse as Markdown and then sanitize.
             const formattedContent = DOMPurify.sanitize(marked.parse(content), { USE_PROFILES: { html: true } });
             messageContentEl.innerHTML = formattedContent;
         }
 
-        messageEl.appendChild(messageContentEl);
+        const metaEl = document.createElement('div');
+        metaEl.classList.add('message-meta');
 
-        // Add a "sending..." status indicator only to user-sent text messages.
+        const timestampEl = document.createElement('span');
+        timestampEl.classList.add('message-timestamp');
+        timestampEl.textContent = formatTimestamp(timestamp);
+        metaEl.appendChild(timestampEl);
+
+        // Add status indicator (checkmark) only to user-sent text messages.
         if (isSentByMe && !isHtml && !content.trim().startsWith(AI_ACTION_PREFIX)) {
             const statusIndicator = document.createElement('span');
             statusIndicator.classList.add('message-status');
-            statusIndicator.textContent = 'sending';
-            messageEl.appendChild(statusIndicator);
+            statusIndicator.innerHTML = '✓'; // Single check for "sending"
+            statusIndicator.title = 'Sending...';
+            metaEl.appendChild(statusIndicator);
         }
+
+        bubbleEl.appendChild(messageContentEl);
+        bubbleEl.appendChild(metaEl);
+        messageEl.appendChild(bubbleEl);
 
         chatMessages.appendChild(messageEl);
         scrollToBottom();
@@ -186,6 +218,29 @@ document.addEventListener('DOMContentLoaded', () => {
     function scrollToBottom() {
         if (chatMessages) {
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    }
+
+    /**
+     * --- NEW: Formats a timestamp for display in messages.
+     * Shows time for recent messages, and date + time for older messages.
+     * @param {string} isoString - The ISO 8601 timestamp string.
+     * @returns {string} The formatted date/time string.
+     */
+    function formatTimestamp(isoString) {
+        const date = new Date(isoString);
+        const now = new Date();
+        const diffHours = (now - date) / (1000 * 60 * 60);
+
+        const timeOptions = { hour: 'numeric', minute: '2-digit', hour12: true };
+
+        if (diffHours < 12) {
+            // Less than 12 hours ago: Show only time (e.g., "10:30 AM")
+            return date.toLocaleTimeString('en-US', timeOptions);
+        } else {
+            // 12+ hours ago: Show date and time (e.g., "Sep 7, 10:30 AM")
+            const dateOptions = { month: 'short', day: 'numeric' };
+            return `${date.toLocaleDateString('en-US', dateOptions)}, ${date.toLocaleTimeString('en-US', timeOptions)}`;
         }
     }
 
@@ -542,10 +597,27 @@ document.addEventListener('DOMContentLoaded', () => {
     // Standard UI event listeners
     if (disconnectBtn) disconnectBtn.addEventListener("click", () => socket.connected ? socket.disconnect() : socket.connect());
     if (helpButtonMobile) helpButtonMobile.addEventListener('click', (e) => { e.preventDefault(); if (helpOverlayVisible) hideHelpOverlay(); else showHelpOverlay(); });
+    
+    // --- REFACTORED: Input field event handling ---
     if (sendButton && inputField) {
         sendButton.addEventListener("click", handleMessageSend);
-        inputField.addEventListener("keypress", (e) => { if (e.key === "Enter" && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); handleMessageSend(); } });
+
+        // Auto-grow textarea on input
+        inputField.addEventListener('input', () => {
+            inputField.style.height = 'auto'; // Reset height to calculate new scrollHeight
+            inputField.style.height = `${inputField.scrollHeight}px`; // Set height to content
+        });
+
+        // Handle Enter vs Shift+Enter for sending messages vs creating new lines
+        inputField.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault(); // Prevent default action (new line)
+                handleMessageSend();
+            }
+            // If Shift+Enter is pressed, the default action (new line) is allowed to happen.
+        });
     }
+
     if (inputField && aiToggleContainer) {
         inputField.addEventListener('input', () => {
             const isAiCommand = inputField.value.trim().toLowerCase().startsWith(AI_ACTION_PREFIX);

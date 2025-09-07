@@ -243,54 +243,89 @@ body::before {
     border: 2px solid var(--bg-color); /* Match terminal bg */
 }
 
-/* Individual Messages */
+/* --- MODERNIZED MESSAGE STYLES --- */
 .message {
-    margin-bottom: 15px;
+    margin-bottom: 2px; /* Reduced margin for tighter packing */
     opacity: 0;
-    animation: fadeIn 0.4s forwards ease-out; /* Smoother fade in */
-    display: flex; /* Use flex for alignment */
-    max-width: 85%; /* Limit message width */
+    animation: fadeIn 0.4s forwards ease-out;
+    display: flex;
+    max-width: 85%;
 }
 @keyframes fadeIn { to { opacity: 1; } }
 
+/* FIX: This rule is no longer needed as the loader is a standard received message. */
+/* .message.loader-message { ... } */
+
 .message.sent {
-    margin-left: auto; /* Align right */
-    justify-content: flex-end; /* Align content right */
+    margin-left: auto;
+    justify-content: flex-end;
 }
 .message.received {
-    margin-right: auto; /* Align left */
-      justify-content: flex-start; /* Align content left */
+    margin-right: auto;
+    justify-content: flex-start;
 }
 
-/* Message Content Bubble */
-.message-content {
-    padding: 10px 15px; /* More padding */
-    border-radius: 18px; /* Rounder bubbles */
-    word-wrap: break-word; /* Wrap long words */
-    white-space: pre-wrap; /* Preserve newlines */
-    line-height: 1.4; /* Better readability */
-    box-shadow: 0 1px 2px rgba(0,0,0,0.2); /* Subtle shadow */
+/* NEW: The main message bubble container */
+.message-bubble {
+    padding: 8px 12px;
+    border-radius: 18px;
+    word-wrap: break-word;
+    line-height: 1.4;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column; /* Stack content and meta */
+    min-width: 80px; /* Ensure bubble has a minimum width */
 }
 
-.message.sent .message-content {
+.message.sent .message-bubble {
     background-color: var(--secondary-color);
-    color: var(--bg-color); /* Darker text for contrast */
-    border-bottom-right-radius: 5px; /* Tail effect */
+    color: var(--bg-color);
+    border-bottom-right-radius: 5px;
 }
 
-
-.message-status {
-    font-size: 0.7em;
-    color: #aaa;
-    margin-left: 10px;
-    align-self: flex-end;
-}
-
-.message.received .message-content {
+.message.received .message-bubble {
     background-color: var(--received-message-bg);
     color: var(--text-color);
-    border-bottom-left-radius: 5px; /* Tail effect */
+    border-bottom-left-radius: 5px;
 }
+
+/* The actual message content (text, markdown, etc.) */
+.message-content {
+    white-space: pre-wrap; /* Preserve newlines */
+    padding: 0; /* Padding is now on the bubble */
+    margin-bottom: 4px; /* Space between content and meta */
+}
+
+/* NEW: Container for timestamp and status */
+.message-meta {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7em;
+    opacity: 0.7;
+    align-self: flex-end; /* Push to the bottom right of the bubble */
+}
+
+.message-timestamp {
+    white-space: nowrap;
+}
+
+/* NEW: Status checkmarks */
+.message-status {
+    font-weight: bold;
+    font-family: 'Arial', sans-serif; /* Ensure checkmarks render well */
+    letter-spacing: -2px; /* Bring double checks closer */
+}
+
+.message-status.sent {
+    color: var(--tertiary-color); /* Highlight sent status */
+}
+
+/* DEPRECATED: Old message-content and message-status styles are replaced by the above */
+/* .message-content { ... } */
+/* .message-status { ... } */
+
 
 /* Images (GIFs) within messages */
 .message-content img {
@@ -396,11 +431,20 @@ body::before {
     /* REMOVE position: relative; from here */
 }
 
-/* NEW: Style the buttons wrapper for desktop view */
+/* NEW: Styling for the textarea to make it behave like a single-line input initially */
+textarea.input {
+  resize: none; /* Disable manual resizing by the user */
+  overflow-y: hidden; /* Hide scrollbar until it's needed */
+  padding-top: 10px; /* Adjust vertical alignment */
+  padding-bottom: 10px;
+  line-height: 1.5; /* Ensure consistent line height */
+  max-height: 120px; /* Prevent it from growing indefinitely */
+}
+
 .buttons-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 4px; /* Adjust gap as needed for desktop */
+  display: flex;
+  align-items: center;
+  gap: 4px; /* Adjust gap as needed for desktop */
 }
 
 .chat-input .input {
@@ -595,12 +639,12 @@ body::before {
 
 /* --- AI Loader Animation --- */
 .loader {
-  height: 50px;
+  height: 0.8rem; /* Reduced height to fit in bubble */
   display: flex;
   align-items: flex-end;
   justify-content: center;
   gap: 4px;
-  padding: 0 10px; /* Ensure it doesn't touch the edges */
+  padding: 0; /* Bubble provides padding, so this is no longer needed */
 }
 
 .bar {
@@ -655,7 +699,7 @@ body::before {
     height: 5px;
   }
   to {
-    height: 40px;
+    height: 30px; /* Reduced animation height to fit inside the bubble */
   }
 }
 
@@ -686,7 +730,6 @@ body::before {
     transition: transform 0.08s ease-out; /* Adjust timing */
     display: none; /* Hide by default */
 }
-/* Show cursor only on devices that support hover */
 @media (hover: hover) and (pointer: fine) {
     .custom-cursor { display: flex; }
     .cursor-dot { display: block; } /* Use block for single dot */

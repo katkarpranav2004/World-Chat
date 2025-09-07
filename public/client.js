@@ -61,12 +61,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiPublicToggle = document.getElementById("ai-public-toggle");
     const aiToggleContainer = document.querySelector(".ai-toggle-container");
     const helpButtonMobile = document.getElementById("help-button-mobile");
+    const emojiButton = document.getElementById("emoji-button");
+    const gifButton = document.getElementById("gif-button");
 
     // ===================================================================================
     // --- STATE MANAGEMENT ---
     // ===================================================================================
 
     let helpOverlayVisible = false;
+    // --- NEW: Centralized Notification State ---
+    let persistentStatus = { text: 'Welcome!', statusClass: 'connecting' };
+    let notificationTimeout;
+
 
     // ===================================================================================
     // --- CORE FUNCTIONS & UI LOGIC ---
@@ -184,15 +190,60 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Updates the connection status display in the status bar.
+     * --- REFACTORED: Central Notification Manager ---
+     * Displays a message in the global status bar with animations.
+     * @param {string} text - The message to display.
+     * @param {object} [options] - Configuration options.
+     * @param {number|null} [options.duration=null] - If set, message is temporary. Restores persistent status after duration (in ms).
+     * @param {string|null} [options.statusClass=null] - CSS class for color coding (e.g., 'connected', 'disconnected').
+     * @param {boolean} [options.isPersistent=false] - If true, this message becomes the new default.
+     */
+    function showNotification(text, options = {}) {
+        const { duration = null, statusClass = null, isPersistent = false } = options;
+
+        if (!connectionStatus) return;
+
+        // The actual text element inside the status bar
+        let textWrapper = connectionStatus.querySelector('.status-text-wrapper');
+        if (!textWrapper) {
+            connectionStatus.innerHTML = '<span class="status-text-wrapper"></span>';
+            textWrapper = connectionStatus.querySelector('.status-text-wrapper');
+        }
+
+        // Clear any pending temporary message timeout
+        clearTimeout(notificationTimeout);
+
+        const updateText = (newText, newStatusClass) => {
+            textWrapper.classList.add('hidden');
+            setTimeout(() => {
+                textWrapper.textContent = newText;
+                // Update status class for color
+                connectionStatus.className = 'connection-status'; // Reset
+                if (newStatusClass) connectionStatus.classList.add(newStatusClass);
+                textWrapper.classList.remove('hidden');
+            }, 200); // This delay should match the CSS transition duration
+        };
+
+        updateText(text, statusClass || persistentStatus.statusClass);
+
+        if (isPersistent) {
+            persistentStatus.text = text;
+            if (statusClass) persistentStatus.statusClass = statusClass;
+        } else if (duration) {
+            notificationTimeout = setTimeout(() => {
+                showNotification(persistentStatus.text, { statusClass: persistentStatus.statusClass });
+            }, duration);
+        }
+    }
+
+
+    /**
+     * --- REFACTORED: Updates the connection status display via the notification manager.
      * @param {string} text - The text to display.
      * @param {string} status - The status class ('connected', 'disconnected', 'connecting').
      */
     function updateConnectionStatus(text, status) {
-        if (!connectionStatus) return;
-        connectionStatus.textContent = text;
-        connectionStatus.className = 'connection-status'; // Reset classes
-        connectionStatus.classList.add(status);
+        showNotification(text, { statusClass: status, isPersistent: true });
         if (disconnectBtn) {
             disconnectBtn.classList.toggle('connected', status === 'connected');
         }
@@ -209,21 +260,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Updates the contextual hint in the status bar (e.g., "F1 for shortcuts").
+     * --- REFACTORED & OPTIMIZED: Updates the contextual hint via the notification manager.
      */
     function updateStatusHints() {
-        const hints = [];
+        let hintText = IS_MOBILE ? 'Tap the ? for help' : `F1 (or Fn+F1) for shortcuts`;
         if (inputField.value.trim().startsWith(AI_ACTION_PREFIX)) {
-            // CORRECTED: Use the dynamic display value from the active shortcuts config
-            hints.push(`${ACTIVE_SHORTCUTS.AI_TOGGLE.display} to toggle AI mode`);
+            hintText = `${ACTIVE_SHORTCUTS.AI_TOGGLE.display} to toggle AI mode`;
         }
         
-        if (hints.length === 0) {
-            hints.push(IS_MOBILE ? 'Tap the ? for help' : `F1 (or Fn+F1) for shortcuts`);
-        }
-
-        if (socket.connected && connectionStatus.textContent === 'Connected') {
-            connectionStatus.textContent = hints[0];
+        // --- PERFORMANCE FIX ---
+        // Only update the notification bar if the hint text has actually changed.
+        // This prevents the UI from re-rendering on every single keystroke.
+        if (hintText !== persistentStatus.text) {
+            showNotification(hintText, { isPersistent: true });
         }
     }
 
@@ -451,37 +500,37 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             if (aiToggleContainer.style.display === 'flex') {
                 aiPublicToggle.checked = !aiPublicToggle.checked;
-                showTooltip('AI mode: ' + (aiPublicToggle.checked ? 'Public' : 'Private'));
+                showNotification('AI mode: ' + (aiPublicToggle.checked ? 'Public' : 'Private'), { duration: 2000 });
             }
         } else if (matchesShortcut(e, ACTIVE_SHORTCUTS.AI_TRIGGER.key)) {
             e.preventDefault();
             if (inputField.value.trim().startsWith(AI_ACTION_PREFIX)) {
                 inputField.value = inputField.value.substring(AI_ACTION_PREFIX.length).trimStart();
-                showTooltip('AI mode deactivated');
+                showNotification('AI mode deactivated', { duration: 2000 });
             } else {
                 inputField.value = AI_ACTION_PREFIX + ' ' + inputField.value;
-                showTooltip('AI mode activated');
+                showNotification('AI mode activated', { duration: 2000 });
             }
             inputField.focus();
             inputField.dispatchEvent(new Event('input', { bubbles: true }));
         } else if (matchesShortcut(e, ACTIVE_SHORTCUTS.EMOJI_PICKER.key)) {
             e.preventDefault();
             document.getElementById('emoji-button')?.click();
-            showTooltip('Emoji picker opened');
+            showNotification('Emoji picker opened', { duration: 2000 });
         } else if (matchesShortcut(e, ACTIVE_SHORTCUTS.GIF_PICKER.key)) {
             e.preventDefault();
             document.getElementById('gif-button')?.click();
-            showTooltip('GIF picker opened');
+            showNotification('GIF picker opened', { duration: 2000 });
         } else if (matchesShortcut(e, ACTIVE_SHORTCUTS.SEND_MESSAGE.key)) {
             e.preventDefault();
             if (inputField.value.trim()) {
                 handleMessageSend();
-                showTooltip('Message sent');
+                showNotification('Message sent', { duration: 2000 });
             }
         } else if (matchesShortcut(e, ACTIVE_SHORTCUTS.FOCUS_INPUT.key)) {
             e.preventDefault();
             inputField.focus();
-            showTooltip('Input focused');
+            showNotification('Input focused', { duration: 2000 });
         }
     }, true);
 
@@ -495,7 +544,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (helpButtonMobile) helpButtonMobile.addEventListener('click', (e) => { e.preventDefault(); if (helpOverlayVisible) hideHelpOverlay(); else showHelpOverlay(); });
     if (sendButton && inputField) {
         sendButton.addEventListener("click", handleMessageSend);
-        inputField.addEventListener("keypress", (e) => { if (e.key === "Enter" && !e.ctrlKey) { e.preventDefault(); handleMessageSend(); } });
+        inputField.addEventListener("keypress", (e) => { if (e.key === "Enter" && !e.ctrlKey && !e.altKey && !e.metaKey) { e.preventDefault(); handleMessageSend(); } });
     }
     if (inputField && aiToggleContainer) {
         inputField.addEventListener('input', () => {
@@ -504,6 +553,24 @@ document.addEventListener('DOMContentLoaded', () => {
             updateStatusHints();
         });
     }
+
+    // --- NEW: Hover-based notifications ---
+    const setupHoverNotifications = () => {
+        const elements = [
+            { el: emojiButton, text: 'Open Emoji Picker' },
+            { el: gifButton, text: 'Open GIF Picker' },
+            { el: sendButton, text: 'Send Message' },
+            { el: disconnectBtn, text: 'Disconnect / Reconnect' },
+            { el: helpButtonMobile, text: 'Show Help & Shortcuts' }
+        ];
+
+        elements.forEach(({ el, text }) => {
+            if (el) {
+                el.addEventListener('mouseenter', () => showNotification(text));
+                el.addEventListener('mouseleave', () => showNotification(persistentStatus.text, { statusClass: persistentStatus.statusClass }));
+            }
+        });
+    };
 
     // ===================================================================================
     // --- SOCKET.IO EVENT HANDLERS ---
@@ -514,12 +581,12 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             if (socket.connected) {
                 updateConnectionStatus("Connected", "connected");
-                setTimeout(updateStatusHints, 2000);
+                // The hint will be restored by the persistent status system
             }
         }, 1300);
     });
     socket.on("disconnect", () => { updateConnectionStatus("Disconnected", "disconnected"); updateUserCount(0); });
-    socket.on("connect_error", (err) => updateConnectionStatus(`Connection failed: ${err.message}`, 'disconnected'));
+    socket.on("connect_error", (err) => updateConnectionStatus(`Connection failed`, 'disconnected'));
     socket.on("backend-user-message", (message, id) => { if (socket.id !== id) addMessage(message, false, id, message.trim().startsWith('<img')); });
     socket.on("total-user", (count) => updateUserCount(count));
 
@@ -553,7 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Use window.addEventListener('load', ...) for reliability, ensuring all assets are loaded.
     window.addEventListener('load', () => {
-        addMessage("Welcome to World-Chat! Type '@ai your question' to talk to the AI.", false);
+        showNotification("Welcome to World-Chat! Type '@ai your question' to talk to the AI.", { duration: 4000 });
         
         if (IS_MOBILE) {
             inputField.placeholder = "Tap to start typing...";
@@ -566,16 +633,15 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.addEventListener('click', focusOnFirstTap);
             document.body.addEventListener('touchend', focusOnFirstTap);
         } else {
-            inputField.placeholder = `Type your message... (F1 or Fn+F1 for shortcuts)`;
+            inputField.placeholder = `Type your message...`; // Placeholder is cleaner now
             // Reinforce focus after load to counter any scripts that might steal it.
             if (document.activeElement !== inputField) inputField.focus();
             setTimeout(() => { if (document.activeElement !== inputField) inputField.focus(); }, 250);
         }
 
-        setTimeout(() => {
-            const hintMessage = IS_MOBILE ? 'Tap the ? for help' : `Press F1 (or Fn+F1) for keyboard shortcuts`;
-            showTooltip(hintMessage, 4000);
-        }, 3000);
+        // Setup hover listeners and initial hint
+        setupHoverNotifications();
+        updateStatusHints();
     });
 });
 

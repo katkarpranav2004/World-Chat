@@ -1027,3 +1027,18 @@ body::before {
         display: flex; /* Show when visible */
     }
 }
+
+/* --- Notification Bar Animations --- */
+.status-bar .connection-status {
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.status-bar .connection-status .status-text-wrapper {
+    display: inline-block;
+    transition: opacity 0.2s ease-in-out;
+    opacity: 1;
+}
+
+.status-bar .connection-status .status-text-wrapper.hidden {
+    opacity: 0;
+}

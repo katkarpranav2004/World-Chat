@@ -74,6 +74,8 @@
     const helpButtonMobile = document.getElementById("help-button-mobile");
     const emojiButton = document.getElementById("emoji-button");
     const gifButton = document.getElementById("gif-button");
+    // NEW: Select the scroll-to-bottom button
+    const scrollToBottomBtn = document.getElementById("scroll-to-bottom");
 
     // ===================================================================================
     // --- STATE MANAGEMENT ---
@@ -81,6 +83,8 @@
 
     // --- NEW: User identity state ---
     let currentUser = null; // This will be populated by the new init flow
+    // NEW: State to track user's scroll position
+    let isUserScrolledUp = false;
 
     let helpOverlayVisible = false;
     // --- NEW: Centralized Notification State ---
@@ -247,6 +251,10 @@
             socket.emit('user-message', messagePayload);
         }
 
+        // --- FIX: Reset scroll state on send ---
+        // When a user sends a message, their intent is to be at the bottom of the chat.
+        isUserScrolledUp = false;
+
         // Reset input field and UI state
         inputField.value = "";
         inputField.style.height = 'auto'; // FIX: Reset textarea height after sending
@@ -318,15 +326,26 @@
         messageEl.appendChild(bubbleEl);
 
         chatMessages.appendChild(messageEl);
-        scrollToBottom();
+        // MODIFIED: Use the new smart scroll function
+        smartScrollToBottom();
     }
 
     /**
      * Scrolls the chat message container to the bottom.
      */
-    function scrollToBottom() {
+    function forceScrollToBottom() {
         if (chatMessages) {
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+    }
+
+    /**
+     * --- NEW: Smart scroll function ---
+     * Only scrolls to the bottom if the user is not intentionally scrolled up.
+     */
+    function smartScrollToBottom() {
+        if (!isUserScrolledUp) {
+            forceScrollToBottom();
         }
     }
 
@@ -782,38 +801,35 @@
             addMessage(e.detail.message);
         });
 
-        // Standard UI event listeners
-        if (disconnectBtn) disconnectBtn.addEventListener("click", () => socket.connected ? socket.disconnect() : socket.connect());
-        if (helpButtonMobile) helpButtonMobile.addEventListener('click', (e) => { e.preventDefault(); if (helpOverlayVisible) hideHelpOverlay(); else showHelpOverlay(); });
+        // --- REMOVED: These listeners are already set up in the global scope and are redundant here. ---
+        // if (disconnectBtn) disconnectBtn.addEventListener("click", () => socket.connected ? socket.disconnect() : socket.connect());
+        // if (helpButtonMobile) helpButtonMobile.addEventListener('click', (e) => { e.preventDefault(); if (helpOverlayVisible) hideHelpOverlay(); else showHelpOverlay(); });
         
-        // Input field event handling
-        if (sendButton && inputField) {
-            sendButton.addEventListener("click", handleMessageSend);
+        // --- NEW: Scroll handling logic ---
+        if (chatMessages && scrollToBottomBtn) {
+            chatMessages.addEventListener('scroll', () => {
+                // Check if user is scrolled up more than a certain threshold (e.g., 100px)
+                const scrollThreshold = 100;
+                const isAtBottom = chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < scrollThreshold;
 
-            inputField.addEventListener('input', () => {
-                inputField.style.height = 'auto';
-                inputField.style.height = `${inputField.scrollHeight}px`;
-            });
-
-            inputField.addEventListener("keydown", (e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleMessageSend();
+                if (!isAtBottom) {
+                    isUserScrolledUp = true;
+                    scrollToBottomBtn.classList.add('visible');
+                } else {
+                    isUserScrolledUp = false;
+                    scrollToBottomBtn.classList.remove('visible');
                 }
             });
-        }
 
-        if (inputField && aiToggleContainer) {
-            inputField.addEventListener('input', () => {
-                const isAiCommand = inputField.value.trim().toLowerCase().startsWith(AI_ACTION_PREFIX);
-                aiToggleContainer.style.display = isAiCommand ? 'flex' : 'none';
-                updateStatusHints();
-            });
-
-            aiPublicToggle.addEventListener('change', () => {
-                userPreferences.set('aiPublic', aiPublicToggle.checked);
+            scrollToBottomBtn.addEventListener('click', () => {
+                forceScrollToBottom();
             });
         }
+
+        // --- REMOVED: These listeners are already set up in the global scope and are redundant here. ---
+        // if (sendButton && inputField) { ... }
+        // if (inputField && aiToggleContainer) { ... }
+        
         setupHoverNotifications();
     }
 

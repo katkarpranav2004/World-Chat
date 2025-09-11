@@ -424,6 +424,46 @@ body::before {
     padding: 0;
 }
 
+/* --- NEW: Scroll to Bottom Button --- */
+.scroll-to-bottom-button {
+    position: absolute;
+    bottom: 75px; /* Position above the input area */
+    right: 25px;
+    width: 40px;
+    height: 40px;
+    background-color: var(--tertiary-color);
+    color: var(--bg-color);
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: none;
+    z-index: 5;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    
+    /* Visibility transition */
+    opacity: 0;
+    transform: translateY(10px);
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.scroll-to-bottom-button.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.scroll-to-bottom-button:hover {
+    background-color: var(--quaternary-color);
+    color: var(--text-color);
+}
+
+.scroll-to-bottom-button:active {
+    transform: scale(0.9);
+}
+
 
 /* --- Chat Input Bar --- */
 

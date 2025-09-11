@@ -298,7 +298,8 @@
         messageContentEl.classList.add("message-content");
 
         if (isHtml) {
-            messageContentEl.innerHTML = DOMPurify.sanitize(text, { USE_PROFILES: { html: true } });
+            const sanitizedHtml = DOMPurify.sanitize(text, { USE_PROFILES: { html: true } });
+            messageContentEl.innerHTML = sanitizedHtml;
         } else {
             const formattedContent = DOMPurify.sanitize(marked.parse(text), { USE_PROFILES: { html: true } });
             messageContentEl.innerHTML = formattedContent;
@@ -699,10 +700,10 @@
         }
     }, true);
 
-    // Listen for local event to display sent GIFs/emojis immediately.
-    document.addEventListener('local-message-sent', (e) => {
-        addMessage(e.detail.message);
-    });
+    // --- REMOVED: This event listener is redundant. The correct one is inside setupDOMListeners.
+    // document.addEventListener('local-message-sent', (e) => {
+    //     addMessage(e.detail.message);
+    // });
 
     // Standard UI event listeners
     if (disconnectBtn) disconnectBtn.addEventListener("click", () => socket.connected ? socket.disconnect() : socket.connect());
@@ -816,8 +817,6 @@
         setupHoverNotifications();
     }
 
-    // --- REMOVED: The 'userReady' event listener is no longer needed. ---
-
     // --- NEW: Main Application Entry Point ---
     // Apply saved user preferences on load
     aiPublicToggle.checked = userPreferences.get('aiPublic', false);
@@ -830,46 +829,49 @@
     // This will either resolve immediately with a stored user or show the modal and wait for the user to join.
     currentUser = await window.getUserIdentity();
 
+    // --- NEW: Define sendContent function within the correct scope ---
+    /**
+     * @description Global function to handle sending rich content (GIFs, Emojis).
+     * Exposed on the window object to be accessible from support.js.
+     * @param {{type: 'gif'|'emoji', content: string, alt?: string}} data
+     */
+    window.sendContent = function({ type, content, alt = '' }) {
+        const messageInput = document.getElementById('message-input');
+        // This check will now work correctly because currentUser is in scope.
+        if (!messageInput || !currentUser) {
+            console.error('[client.js] sendContent failed: messageInput or currentUser is missing.');
+            return;
+        }
+
+        if (type === 'emoji') {
+            messageInput.value += content;
+            messageInput.focus();
+            // Trigger input event to resize textarea if needed
+            messageInput.dispatchEvent(new Event('input', { bubbles: true }));
+        } else if (type === 'gif') {
+            const socket = window.chatSocket;
+            if (socket && socket.connected) {
+                const gifHtml = `<img src="${content}" alt="${alt || 'GIF'}" class="gif-message">`;
+                
+                const messagePayload = {
+                    id: `${socket.id}-${Date.now()}`,
+                    user: currentUser, // Use the established user identity
+                    text: gifHtml,
+                    timestamp: new Date().toISOString(),
+                    isHtml: true
+                };
+                
+                // Dispatch a local event to render the sent GIF immediately.
+                document.dispatchEvent(new CustomEvent('local-message-sent', { detail: { message: messagePayload } }));
+                
+                // Emit the full payload to the server
+                socket.emit('user-message', messagePayload);
+            }
+        }
+    };
+
     // Once we have the user, we can initialize the rest of the chat application.
     initializeChat();
 
 })(); // Immediately invoke the async function
-
-/**
- * @description Global function to handle sending rich content (GIFs, Emojis).
- * Exposed on the window object to be accessible from support.js.
- * @param {{type: 'gif'|'emoji', content: string, alt?: string}} data
- */
-window.sendContent = function({ type, content, alt = '' }) {
-    const messageInput = document.getElementById('message-input');
-    // MODIFIED: Add a check for currentUser
-    if (!messageInput || !currentUser) return;
-
-    if (type === 'emoji') {
-        messageInput.value += content;
-        messageInput.focus();
-        // Trigger input event to resize textarea if needed
-        messageInput.dispatchEvent(new Event('input', { bubbles: true }));
-    } else if (type === 'gif') {
-        const socket = window.chatSocket;
-        if (socket && socket.connected) {
-            const gifHtml = `<img src="${content}" alt="${alt || 'GIF'}" class="gif-message">`;
-            
-            // --- MODIFIED: Use the global currentUser object ---
-            const messagePayload = {
-                id: `${socket.id}-${Date.now()}`,
-                user: currentUser, // Use the established user identity
-                text: gifHtml,
-                timestamp: new Date().toISOString(),
-                isHtml: true
-            };
-            
-            // Dispatch a local event to render the sent GIF immediately.
-            document.dispatchEvent(new CustomEvent('local-message-sent', { detail: { message: messagePayload } }));
-            
-            // Emit the full payload to the server
-            socket.emit('user-message', messagePayload);
-        }
-    }
-};
 

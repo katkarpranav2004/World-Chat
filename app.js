@@ -32,7 +32,8 @@ app.use(express.json());
 app.use(express.static(path.resolve('./public')));
 
 // --- In-Memory Data Stores ---
-let onlineUsers = new Set();
+// MODIFIED: Use a Map to store user data associated with socket IDs
+const onlineUsers = new Map();
 // Use a Map to store private chat session instances for each user
 const userPrivateChatSessions = new Map();
 // Create a single, shared public chat session for all users
@@ -45,9 +46,19 @@ const CACHE_DURATION_MS = 10 * 60 * 1000; // 10 minutes
 
 
 // --- Socket.IO Connection Handling ---
+// MODIFIED: Add middleware to handle user authentication
+io.use((socket, next) => {
+    const user = socket.handshake.auth.user;
+    if (!user || !user.id || !user.name) {
+        console.error('[Server] Middleware: Authentication failed. Invalid user data.');
+        return next(new Error("Invalid user data"));
+    }
+    socket.user = user;
+    next();
+});
+
 io.on('connection', (socket) => {
-    console.log(`User connected: ${socket.id}`);
-    onlineUsers.add(socket.id);
+    onlineUsers.set(socket.id, socket.user);
     io.emit('total-user', onlineUsers.size);
 
     // For each user, create and store a new PRIVATE chat session instance.
@@ -56,7 +67,12 @@ io.on('connection', (socket) => {
 
 
     socket.on('user-message', (message, callback) => {
-        io.emit('backend-user-message', message, socket.id);
+        // MODIFIED: Ensure the message has the correct user data from the server-side socket
+        const fullMessage = {
+            ...message,
+            user: socket.user
+        };
+        io.emit('backend-user-message', fullMessage);
         if (callback) {
             callback();
         }
@@ -65,28 +81,21 @@ io.on('connection', (socket) => {
     // --- FIXED: AI Question Handler ---
     socket.on('ask-ai', async ({ question, isPublic }) => {
         let chat;
+        // --- MODIFIED: Simplified and corrected AI chat session handling ---
         if (isPublic) {
-            // Use the shared public chat session
+            // Use the shared public chat session for public questions
             chat = publicChat;
         } else {
-            // For private questions, give the AI context of the public chat
-            const privateChatSession = userPrivateChatSessions.get(socket.id);
-            if (!privateChatSession) {
-                console.error(`Could not find session for user ${socket.id}`);
-                return socket.emit('ai-response', { error: "Could not find your session. Please reconnect." });
+            // Use the user's dedicated private chat session for private questions
+            chat = userPrivateChatSessions.get(socket.id);
+            if (!chat) {
+                console.error(`Could not find private session for user ${socket.id}`);
+                return socket.emit('ai-response', { error: "Could not find your AI session. Please reconnect." });
             }
-            // Get history from the main public chat and the user's private chat
-            const publicHistory = await publicChat.getHistory();
-            const privateHistory = await privateChatSession.getHistory();
-
-            // Combine histories to provide full context, then create a temporary session
-            const combinedHistory = [...publicHistory, ...privateHistory];
-            const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
-            chat = model.startChat({ history: combinedHistory });
         }
 
         try {
-            // Use the SDK's sendMessage method, which handles history correctly
+            // Use the SDK's sendMessage method, which handles history correctly for both public and private sessions
             const prompt = `Keep your response concise and conversational, like a chat message. User: "${question}"`;
             const result = await chat.sendMessage(prompt);
             const text = result.response.text();
@@ -94,38 +103,25 @@ io.on('connection', (socket) => {
             if (isPublic) {
                 // Broadcast the public question and response to everyone else
                 socket.broadcast.emit('public-ai-message', {
-                    user: socket.id,
+                    user: socket.user,
                     question: question,
                     answer: text
                 });
-                // Send a private response to the original user
+                // Send the answer back to the original user as a standard AI response
                 socket.emit('ai-response', { answer: text });
             } else {
                 // Send the private response ONLY to the user who asked
                 socket.emit('ai-response', { answer: text });
-                
-                // --- FIX: Manually update the user's persistent private history ---
-                // Instead of trying to push to a non-existent array, we can use the
-                // internal history management of the SDK. We'll just send the same
-                // prompt and the generated answer to the user's persistent session.
-                // This is a simplified way to keep the history in sync.
-                const privateChatSession = userPrivateChatSessions.get(socket.id);
-                if (privateChatSession) {
-                    // This call updates the session's internal history but we don't need its response.
-                    await privateChatSession.sendMessage(question); 
-                    // And we can simulate the model's response to keep the conversation flow.
-                    // Note: This approach assumes the model's response would be the same, which is
-                    // not guaranteed. A more robust solution would involve restructuring the context logic.
-                    // For now, we'll just add the user's part to maintain some history.
-                }
             }
+            // NOTE: The flawed manual history update for private chats has been removed.
+            // The Gemini SDK now correctly handles history for the 'chat' object automatically.
 
         } catch (error) {
             console.error("Gemini API Error:", error);
             const errorMessage = "Sorry, the AI is having trouble thinking right now.";
             // Properly emit errors back to the client
             if (isPublic) {
-                 socket.broadcast.emit('public-ai-message', { user: socket.id, question: question, error: errorMessage });
+                 socket.broadcast.emit('public-ai-message', { user: socket.user, question: question, error: errorMessage }); // MODIFIED: Use the full user object
                  socket.emit('ai-response', { error: errorMessage });
             } else {
                 socket.emit('ai-response', { error: errorMessage });
@@ -133,8 +129,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('disconnect', () => {
-        console.log(`User disconnected: ${socket.id}`);
+    socket.on('disconnect', (reason) => {
         onlineUsers.delete(socket.id);
         // Clean up the user's private chat session from memory
         userPrivateChatSessions.delete(socket.id);
@@ -162,10 +157,8 @@ app.get('/api/gifs', async (req, res) => {
 
     // --- NEW: Check if valid, non-expired data is in the cache ---
     if (cachedData && Date.now() - cachedData.timestamp < CACHE_DURATION_MS) {
-        console.log(`[Cache] HIT for Giphy query: "${cacheKey}"`);
         return res.json(cachedData.data);
     }
-    console.log(`[Cache] MISS for Giphy query: "${cacheKey}"`);
 
 
     const url = query

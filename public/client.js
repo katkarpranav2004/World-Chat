@@ -5,7 +5,17 @@
  * renders chat messages, and orchestrates the overall user interface.
  */
 
-document.addEventListener('DOMContentLoaded', () => {
+// MODIFIED: The main logic is now wrapped in an async function called from DOMContentLoaded
+(async () => {
+    // Wait for the DOM to be fully loaded
+    await new Promise(resolve => {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', resolve);
+        } else {
+            resolve();
+        }
+    });
+
     // ===================================================================================
     // --- CONSTANTS & CONFIGURATION ---
     // ===================================================================================
@@ -49,7 +59,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- DOM ELEMENT SELECTION ---
     // ===================================================================================
 
-    const socket = io();
+    // MODIFIED: Initialize socket without auto-connecting
+    const socket = io({ autoConnect: false });
     window.chatSocket = socket; // Expose socket globally for support.js
 
     const chatMessages = document.querySelector(".chat-messages");
@@ -69,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ===================================================================================
 
     // --- NEW: User identity state ---
-    let currentUser = { id: null, name: 'Anonymous' };
+    let currentUser = null; // This will be populated by the new init flow
 
     let helpOverlayVisible = false;
     // --- NEW: Centralized Notification State ---
@@ -106,9 +117,12 @@ document.addEventListener('DOMContentLoaded', () => {
      * This function is now called only after a user identity is confirmed.
      */
     function initializeChat() {
-        // --- NEW: Send user data on connection ---
+        // --- MODIFIED: Connection logic is now self-contained here ---
         socket.auth = { user: currentUser };
-        socket.connect();
+
+        connectSocket(); // Set up all .on() listeners
+
+        socket.connect(); // Now, connect
 
         setupDOMListeners();
         let hintText = IS_MOBILE ? 'Tap the ? for help' : `F1 (or Fn+F1) for shortcuts`;
@@ -126,12 +140,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function connectSocket() {
         socket.on("connect", () => {
             updateConnectionStatus("Connected", "connected");
-            console.log(`Connected to server with ID: ${socket.id}`);
         });
-        socket.on("disconnect", () => { updateConnectionStatus("Disconnected", "disconnected"); updateUserCount(0); });
-        socket.on("connect_error", (err) => updateConnectionStatus(`Connection failed: ${err.message}`, 'disconnected'));
-        
-        // MODIFIED: Handle full message object
+        socket.on("disconnect", (reason) => {
+            updateConnectionStatus("Disconnected", "disconnected");
+            updateUserCount(0);
+        });
+        socket.on("connect_error", (err) => {
+            console.error(`[client.js] Socket Event: connect_error. Message: ${err.message}`);
+            // MODIFIED: Provide clearer feedback on authentication errors
+            if (err.message === "Invalid user data") {
+                updateConnectionStatus("Auth failed. Please refresh.", "disconnected");
+                // Consider clearing localStorage to force re-registration
+                localStorage.removeItem('world-chat-user');
+            } else {
+                updateConnectionStatus(`Connection failed`, 'disconnected');
+            }
+        });
         socket.on("backend-user-message", (message) => {
             // Don't display our own messages that we get back from the server
             if (message.user.id === currentUser.id) return;
@@ -140,21 +164,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         socket.on("total-user", (count) => updateUserCount(count));
 
+        // --- NEW: Restored AI event listeners ---
         socket.on('ai-response', (data) => {
+            // Find and remove the loader message
             const loader = document.querySelector('.ai-loader-message');
             if (loader) loader.remove();
 
             if (data.answer) {
                 addMessage({
-                    user: { name: 'Gemini AI' },
+                    user: { id: 'ai-gemini', name: 'Chat AI' }, // Give AI a unique ID
                     text: data.answer,
-                    isHtml: false
+                    isHtml: false,
+                    timestamp: new Date().toISOString() // FIX: Add timestamp
                 });
             } else if (data.error) {
                 addMessage({
-                    user: { name: 'System' },
+                    user: { id: 'ai-system', name: 'System' }, // Give System a unique ID
                     text: `**AI Error:** ${data.error}`,
-                    isHtml: false
+                    isHtml: false,
+                    timestamp: new Date().toISOString() // FIX: Add timestamp
                 });
             }
         });
@@ -162,9 +190,10 @@ document.addEventListener('DOMContentLoaded', () => {
         socket.on('public-ai-message', (data) => {
             const messageText = `**AI Response to ${data.user.name}:**\n\n> "${data.question}"\n\n${data.answer || data.error}`;
             addMessage({
-                user: { name: 'Public AI' },
+                user: { id: 'ai-public', name: 'Public AI' }, // Give Public AI a unique ID
                 text: messageText,
-                isHtml: false
+                isHtml: false,
+                timestamp: new Date().toISOString() // FIX: Add timestamp
             });
         });
     }
@@ -173,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
      * Sends a message or AI command to the server via WebSocket.
      */
     function handleMessageSend() {
-        if (!inputField || !socket || !socket.connected) {
+        if (!inputField || !socket || !socket.connected || !currentUser) {
             addMessage("Lost you mate! Check your Internet connection OwO", false);
             return;
         }
@@ -186,7 +215,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (question) {
                 const isPublic = aiPublicToggle.checked;
                 // Display the user's query locally
-                addMessage({ user: currentUser, text: messageContent });
+                addMessage({ user: currentUser, text: messageContent, timestamp: new Date().toISOString() }); // FIX: Add timestamp
                 
                 // Display loader
                  const loaderHtml = `
@@ -195,10 +224,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         <span class="bar green"></span><span class="bar blue"></span><span class="bar violet"></span>
                     </div>`;
                 addMessage({
-                    user: { name: 'Gemini AI' }, // Loader is attributed to the AI
+                    user: { name: 'Chat AI' }, // Loader is attributed to the AI
                     text: loaderHtml,
                     isHtml: true,
-                    isLoader: true
+                    isLoader: true,
+                    timestamp: new Date().toISOString() // FIX: Add timestamp
                 });
 
                 socket.emit('ask-ai', { question, isPublic });
@@ -238,9 +268,14 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function addMessage(message) {
         if (!chatMessages) return;
+        // MODIFIED: Add a check for currentUser before proceeding
+        if (!currentUser || !message.user || !message.user.name) return; // Ignore invalid messages
 
-        const { user, text, timestamp = new Date().toISOString(), isHtml = false, isLoader = false } = message;
-        const isSentByMe = user.id === currentUser.id;
+        // --- FIX: Destructure all properties from the message object ---
+        const { user, text, timestamp, isHtml = false, isLoader = false } = message;
+
+        const userId = user.id || 'ai-user';
+        const isSentByMe = userId === currentUser.id;
 
         const messageEl = document.createElement("div");
         messageEl.classList.add("message", isSentByMe ? "sent" : "received");
@@ -728,53 +763,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- SOCKET.IO EVENT HANDLERS ---
     // ===================================================================================
 
-    socket.on("connect", () => {
-        updateConnectionStatus("Connecting...", "connecting");
-        setTimeout(() => {
-            if (socket.connected) {
-                updateConnectionStatus("Connected", "connected");
-                // The hint will be restored by the persistent status system
-            }
-        }, 1300);
-    });
-    socket.on("disconnect", () => { updateConnectionStatus("Disconnected", "disconnected"); updateUserCount(0); });
-    socket.on("connect_error", (err) => updateConnectionStatus(`Connection failed`, 'disconnected'));
-    socket.on("backend-user-message", (message) => {
-        // Don't display our own messages that we get back from the server
-        if (message.user.id === currentUser.id) return;
-        addMessage(message);
-    });
-    socket.on("total-user", (count) => updateUserCount(count));
-
-    // --- FIXED: Implemented AI response handlers ---
-    socket.on('ai-response', (data) => {
-        const loader = document.querySelector('.ai-loader-message');
-        if (loader) loader.remove();
-
-        if (data.answer) {
-            addMessage({
-                user: { name: 'Gemini AI' },
-                text: data.answer,
-                isHtml: false
-            });
-        } else if (data.error) {
-            addMessage({
-                user: { name: 'System' },
-                text: `**AI Error:** ${data.error}`,
-                isHtml: false
-            });
-        }
-    });
-
-    socket.on('public-ai-message', (data) => {
-        const messageText = `**AI Response to ${data.user.name}:**\n\n> "${data.question}"\n\n${data.answer || data.error}`;
-        addMessage({
-            user: { name: 'Public AI' },
-            text: messageText,
-            isHtml: false
-        });
-    });
-
+    // --- REMOVED: This entire block is redundant. The listeners are correctly
+    // --- set up inside the connectSocket() function. Removing this will fix
+    // --- the double-message bug.
 
     // ===================================================================================
     // --- INITIALIZATION ---
@@ -825,42 +816,24 @@ document.addEventListener('DOMContentLoaded', () => {
         setupHoverNotifications();
     }
 
-    // --- NEW: Wait for user identity before initializing the chat ---
-    document.addEventListener('userReady', (e) => {
-        currentUser = e.detail;
-        // Now that we have a user, we can initialize the main application.
-        initializeChat();
-    });
+    // --- REMOVED: The 'userReady' event listener is no longer needed. ---
 
-    // Use window.addEventListener('load', ...) for reliability
-    window.addEventListener('load', () => {
-        // --- NEW: Apply saved user preferences on load ---
-        aiPublicToggle.checked = userPreferences.get('aiPublic', false);
+    // --- NEW: Main Application Entry Point ---
+    // Apply saved user preferences on load
+    aiPublicToggle.checked = userPreferences.get('aiPublic', false);
+    if (IS_MOBILE) {
+        inputField.placeholder = "Tap to start typing...";
+    } else {
+        inputField.placeholder = `Type your message...`;
+    }
 
-        showNotification("Welcome to World-Chat! Type '@ai your question' to talk to the AI.", { duration: 4000 });
-        
-        if (IS_MOBILE) {
-            inputField.placeholder = "Tap to start typing...";
-            handleMobileViewport();
-            const focusOnFirstTap = () => {
-                inputField.focus();
-                document.body.removeEventListener('click', focusOnFirstTap);
-                document.body.removeEventListener('touchend', focusOnFirstTap);
-            };
-            document.body.addEventListener('click', focusOnFirstTap);
-            document.body.addEventListener('touchend', focusOnFirstTap);
-        } else {
-            inputField.placeholder = `Type your message...`; // Placeholder is cleaner now
-            // Reinforce focus after load to counter any scripts that might steal it.
-            if (document.activeElement !== inputField) inputField.focus();
-            setTimeout(() => { if (document.activeElement !== inputField) inputField.focus(); }, 250);
-        }
+    // This will either resolve immediately with a stored user or show the modal and wait for the user to join.
+    currentUser = await window.getUserIdentity();
 
-        // Setup hover listeners and initial hint
-        setupHoverNotifications();
-        updateStatusHints();
-    });
-});
+    // Once we have the user, we can initialize the rest of the chat application.
+    initializeChat();
+
+})(); // Immediately invoke the async function
 
 /**
  * @description Global function to handle sending rich content (GIFs, Emojis).
@@ -869,7 +842,8 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 window.sendContent = function({ type, content, alt = '' }) {
     const messageInput = document.getElementById('message-input');
-    if (!messageInput) return;
+    // MODIFIED: Add a check for currentUser
+    if (!messageInput || !currentUser) return;
 
     if (type === 'emoji') {
         messageInput.value += content;

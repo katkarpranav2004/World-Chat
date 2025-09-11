@@ -7,6 +7,45 @@
 
 // MODIFIED: The main logic is now wrapped in an async function called from DOMContentLoaded
 (async () => {
+    // --- NEW: Mobile Viewport Height Fix ---
+    // This function calculates the actual viewport height and sets it as a CSS variable.
+    // This avoids issues on mobile where the browser's UI (like the address bar) can
+    // interfere with the `100vh` unit.
+    const setAppHeight = () => {
+        const doc = document.documentElement;
+        doc.style.setProperty('--app-height', `${window.innerHeight}px`);
+    };
+
+    // --- NEW: Visual Viewport API for Keyboard Handling ---
+    // This is a more robust way to handle the on-screen keyboard on mobile.
+    // It specifically listens for changes to the *visible* part of the viewport.
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+            // When the keyboard opens/closes, the visual viewport resizes.
+            // We set the app height to match this new visible height.
+            const doc = document.documentElement;
+            doc.style.setProperty('--app-height', `${window.visualViewport.height}px`);
+
+            // CRITICAL FIX: After the resize, the browser might not have the
+            // chat scrolled to the bottom. We force it to scroll to the latest message.
+            // A small timeout allows the browser to finish its layout reflow.
+            setTimeout(() => {
+                forceScrollToBottom();
+            }, 100);
+        });
+        
+        // Set initial height using the visual viewport
+        const doc = document.documentElement;
+        doc.style.setProperty('--app-height', `${window.visualViewport.height}px`);
+
+    } else {
+        // Fallback for older browsers that don't support VisualViewport
+        window.addEventListener('resize', setAppHeight);
+        window.addEventListener('orientationchange', setAppHeight);
+        setAppHeight(); // Set initial value on load
+    }
+
+
     // Wait for the DOM to be fully loaded
     await new Promise(resolve => {
         if (document.readyState === 'loading') {

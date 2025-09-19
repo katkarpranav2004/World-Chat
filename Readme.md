@@ -2,7 +2,7 @@
 
 > A real-time, privacy-focused chat application with integrated AI assistance. No databases, no tracking, just pure conversation.
 
-[![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://your-netlify-url.netlify.app)
+[![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://world-chat-zuyy.onrender.com)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green)](https://nodejs.org/)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-Realtime-blue)](https://socket.io/)
 [![Gemini AI](https://img.shields.io/badge/Gemini-AI%20Powered-orange)](https://ai.google.dev/)
@@ -143,12 +143,8 @@ We welcome contributions! Here's how to get started:
 - Test on both desktop and mobile devices
 - Ensure accessibility compliance
 - Update documentation for new features
+- **Report Issues**: [GitHub Issues](https://github.com/ashesbloom/World-Chat/issues)
 
-## 🔗 Links
-
-- **Live Demo**: [Visit World-Chat](https://your-netlify-url.netlify.app)
-- **Report Issues**: [GitHub Issues](https://github.com/yourusername/World-Chat/issues)
-- **Documentation**: [Technical Docs](technical-doc.txt) | [UI/UX Docs](UX-doc.txt)
 
 ## 🌟 Why World-Chat?
 
@@ -162,7 +158,7 @@ In an era of data harvesting and privacy concerns, World-Chat offers a refreshin
 
 Ready to experience the future of private, AI-enhanced communication? 
 
-[![Try World-Chat Now](https://img.shields.io/badge/Try%20World--Chat-Now-brightgreen?style=for-the-badge)](https://your-netlify-url.netlify.app)
+[![Try World-Chat Now](https://img.shields.io/badge/Try%20World--Chat-Now-brightgreen?style=for-the-badge)](https://world-chat-zuyy.onrender.com)
 
 ---
 

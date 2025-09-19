@@ -43,13 +43,24 @@ Switch between **Public AI mode** (shared context for the entire room) and **Pri
 ## 🖼️ Screenshots
 
 ### Desktop Experience
-*Terminal-style chat interface with AI integration*
+<img width="500" height="894" alt="2" src="https://github.com/user-attachments/assets/520d7215-1859-46e7-9fa4-781fa9bee978" />
+<img width="500" height="897" alt="3" src="https://github.com/user-attachments/assets/4d439202-7e93-449f-b889-ee4bc5e4cfca" />
+
+<img width="500" height="897" alt="1" src="https://github.com/user-attachments/assets/f9039578-7da0-41ce-9f8a-cd69e7ef52f8" />
+<img width="500" height="897" alt="4" src="https://github.com/user-attachments/assets/be59627e-03f7-447e-8a74-8b624a8b71d7" />
 
 ### Mobile Experience  
 *Fully responsive design with mobile keyboard optimization*
 
+<img width="260" height="1500" alt="4" src="https://github.com/user-attachments/assets/2f676850-efe2-4a7b-ab07-af6853ab4daf" />
+<img width="260" height="1500" alt="4" src="https://github.com/user-attachments/assets/8afa4027-1ccb-4a4a-88cf-796a0a54fea8" />
+
 ### AI Mode Toggle
 *Switch between Public and Private AI assistance*
+
+<img width="393" height="150" alt="Screenshot 2025-09-19 203330" src="https://github.com/user-attachments/assets/b98455f8-e107-44d8-8dc5-6ceeb37cd174" />
+<img width="263" height="130" alt="Screenshot 2025-09-19 203342" src="https://github.com/user-attachments/assets/2e15824d-6696-48a3-9061-e2cd6f6cfb66" />
+<img width="459" height="280" alt="Screenshot 2025-09-19 203411" src="https://github.com/user-attachments/assets/3e7d4e38-86d6-48c9-b114-dd5fbe30d38b" />
 
 ## 🛠️ Tech Stack
 

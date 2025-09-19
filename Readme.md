@@ -1,11 +1,16 @@
-# World-Chat 🌐
+<div align="center">
 
-> A real-time, privacy-focused chat application with integrated AI assistance. No databases, no tracking, just pure conversation.
+# World-Chat
+*A real-time, privacy-focused chat application with integrated AI assistance. No databases, no tracking, just pure conversation.* 
+
+<img width="150" height="150" alt="image" src="https://github.com/user-attachments/assets/9bb48162-426d-48ce-951c-4ce91623b4c1" />
 
 [![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://world-chat-zuyy.onrender.com)
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green)](https://nodejs.org/)
 [![Socket.IO](https://img.shields.io/badge/Socket.IO-Realtime-blue)](https://socket.io/)
 [![Gemini AI](https://img.shields.io/badge/Gemini-AI%20Powered-orange)](https://ai.google.dev/)
+
+</div>
 
 ## 🎯 Vision
 

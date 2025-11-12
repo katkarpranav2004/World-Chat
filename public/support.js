@@ -4,6 +4,7 @@
  * This includes the custom cursor, live clock, and the emoji/GIF picker panels.
  * This script is loaded with 'defer', so it executes after the DOM is parsed.
  */
+//corrected the gifs and made it suitable for all screens and improved the ui of emojis also
 
 // ===================================================================================
 // --- CURSOR LOGIC ---
